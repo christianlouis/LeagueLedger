@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+mysqlclient
+Jinja2
+python-multipart
+passlib[bcrypt]
+qrcode
+email-validator
+pillow
+python-jose[cryptography]
+itsdangerous
+bcrypt==4.0.1
+flask-session==0.5.0

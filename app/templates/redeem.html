@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-lg mx-auto">
+  <!-- QR Code Redemption Box -->
+  <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+    <div class="text-center mb-6">
+      <i class="fas fa-qrcode text-irish-green text-5xl mb-4"></i>
+      <h1 class="text-2xl font-bold text-irish-green">QR Code Redemption</h1>
+      <p class="text-gray-600">Collect your points from the quiz master!</p>
+    </div>
+    
+    <div class="mb-8 p-4 bg-irish-green bg-opacity-10 rounded-lg border border-irish-green text-center">
+      <p class="font-bold text-irish-green mb-1">Congratulations!</p>
+      <p class="text-lg">You've earned <span class="font-bold">{{ ticket.points }}</span> points</p>
+      <p class="text-sm text-gray-600 mt-2">Code: {{ ticket.code }}</p>
+    </div>
+    
+    <form action="/redeem/apply/{{ ticket.code }}" method="post">
+      <div class="mb-6">
+        <label for="team_id" class="block text-sm font-medium text-gray-700 mb-2">Select Team to Award Points:</label>
+        <select name="team_id" id="team_id" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green">
+          <option value="">-- Select a team --</option>
+          {% for team in user_teams %}
+            <option value="{{ team.id }}">{{ team.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <button type="submit" class="w-full bg-irish-green hover:bg-opacity-90 text-white font-bold py-3 px-4 rounded-md transition">
+        Redeem Points
+      </button>
+    </form>
+    
+    <div class="mt-6 text-center">
+      <a href="/teams/" class="text-irish-green hover:underline text-sm">
+        <i class="fas fa-users mr-1"></i> Create a New Team
+      </a>
+    </div>
+  </div>
+  
+  <!-- How It Works -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-xl font-semibold text-irish-green mb-4">How It Works</h3>
+    <div class="space-y-4">
+      <div class="flex items-start">
+        <div class="bg-cream-white p-2 rounded-full mr-3 mt-1">
+          <span class="w-6 h-6 flex items-center justify-center text-irish-green font-bold">1</span>
+        </div>
+        <div>
+          <p class="font-medium">Scan QR Code</p>
+          <p class="text-gray-600 text-sm">Scan the QR code provided by your quiz master.</p>
+        </div>
+      </div>
+      
+      <div class="flex items-start">
+        <div class="bg-cream-white p-2 rounded-full mr-3 mt-1">
+          <span class="w-6 h-6 flex items-center justify-center text-irish-green font-bold">2</span>
+        </div>
+        <div>
+          <p class="font-medium">Select Your Team</p>
+          <p class="text-gray-600 text-sm">Choose which team should receive these points.</p>
+        </div>
+      </div>
+      
+      <div class="flex items-start">
+        <div class="bg-cream-white p-2 rounded-full mr-3 mt-1">
+          <span class="w-6 h-6 flex items-center justify-center text-irish-green font-bold">3</span>
+        </div>
+        <div>
+          <p class="font-medium">Climb the Leaderboard</p>
+          <p class="text-gray-600 text-sm">Watch your team rise in the rankings!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

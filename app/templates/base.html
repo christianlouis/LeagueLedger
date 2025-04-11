@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeagueLedger</title>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'irish-green': '#006837',
+            'golden-ale': '#FFB400',
+            'cream-white': '#F5F0E1',
+            'black-stout': '#1A1A1A',
+            'guinness-red': '#B22222',
+          },
+          fontFamily: {
+            'garamond': ['"EB Garamond"', 'serif'],
+            'inter': ['"Inter"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'EB Garamond', serif;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen bg-cream-white text-black-stout">
+  <header class="bg-irish-green text-cream-white shadow-md">
+    <div class="container mx-auto px-4">
+      <!-- Desktop Navigation -->
+      <div class="flex justify-between items-center py-4">
+        <div class="flex items-center space-x-3">
+          <img src="https://via.placeholder.com/40x40" alt="LeagueLedger Logo" class="h-10 w-10">
+          <h1 class="text-2xl font-bold font-garamond">LeagueLedger</h1>
+        </div>
+        
+        <!-- Desktop Navigation Links -->
+        <nav class="hidden md:flex items-center space-x-6">
+          <a href="/" class="hover:text-golden-ale transition-colors duration-200">
+            <i class="fas fa-home"></i> Home
+          </a>
+          <a href="/teams/" class="hover:text-golden-ale transition-colors duration-200">
+            <i class="fas fa-users"></i> Teams
+          </a>
+          <a href="/leaderboard" class="hover:text-golden-ale transition-colors duration-200">
+            <i class="fas fa-trophy"></i> Leaderboard
+          </a>
+          <a href="/dashboard" class="hover:text-golden-ale transition-colors duration-200">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+          <a href="/about" class="hover:text-golden-ale transition-colors duration-200">
+            About
+          </a>
+          <a href="/contact" class="hover:text-golden-ale transition-colors duration-200">
+            Contact
+          </a>
+          
+          <!-- User Authentication -->
+          {% if current_user %}
+            <div class="relative group">
+              <button class="flex items-center focus:outline-none">
+                <span class="mr-1">{{ current_user.username }}</span>
+                <i class="fas fa-chevron-down text-xs"></i>
+              </button>
+              <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg overflow-hidden z-20 hidden group-hover:block">
+                <a href="/auth/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                <a href="/dashboard/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
+                <div class="border-t border-gray-100"></div>
+                <a href="/auth/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+              </div>
+            </div>
+          {% else %}
+            <a href="/auth/login" class="bg-white text-irish-green px-4 py-1 rounded-md hover:bg-cream-white transition-colors duration-200">
+              Log In
+            </a>
+          {% endif %}
+        </nav>
+        
+        <!-- Mobile Menu Button -->
+        <button id="mobile-menu-button" class="md:hidden text-cream-white focus:outline-none">
+          <i class="fas fa-bars text-2xl"></i>
+        </button>
+      </div>
+      
+      <!-- Mobile Navigation Menu -->
+      <div id="mobile-menu" class="md:hidden hidden pb-4">
+        <nav class="flex flex-col space-y-3">
+          <a href="/" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+            <i class="fas fa-home"></i> Home
+          </a>
+          <a href="/teams/" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+            <i class="fas fa-users"></i> Teams
+          </a>
+          <a href="/leaderboard" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+            <i class="fas fa-trophy"></i> Leaderboard
+          </a>
+          <a href="/dashboard" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+          <a href="/about" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+            About
+          </a>
+          <a href="/contact" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+            Contact
+          </a>
+          
+          <!-- Mobile Auth Links -->
+          {% if current_user %}
+            <a href="/auth/profile" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+              <i class="fas fa-user"></i> {{ current_user.username }}
+            </a>
+            <a href="/auth/logout" class="hover:bg-green-800 py-2 px-3 rounded-md transition-colors duration-200">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+          {% else %}
+            <a href="/auth/login" class="bg-white text-irish-green py-2 px-3 rounded-md">
+              Log In
+            </a>
+            <a href="/auth/register" class="border border-white text-white py-2 px-3 rounded-md">
+              Sign Up
+            </a>
+          {% endif %}
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-grow container mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-black-stout text-cream-white mt-auto">
+    <div class="container mx-auto px-4 py-8">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <h3 class="text-xl font-garamond">LeagueLedger</h3>
+          <p class="text-sm text-cream-white opacity-70">Track Your Triumphs. Celebrate the Quiz.</p>
+        </div>
+        
+        <div class="footer-links">
+          <a href="/about" class="text-cream-white hover:text-golden-ale transition-colors duration-200">About</a>
+          <a href="/contact" class="text-cream-white hover:text-golden-ale transition-colors duration-200">Contact</a>
+          <a href="/privacy" class="text-cream-white hover:text-golden-ale transition-colors duration-200">Privacy</a>
+          <a href="/terms" class="text-cream-white hover:text-golden-ale transition-colors duration-200">Terms</a>
+        </div>
+      </div>
+      
+      <div class="border-t border-gray-700 mt-6 pt-6 text-center text-sm text-cream-white opacity-70">
+        &copy; {{ now().year }} LeagueLedger. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile menu toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      const menuButton = document.getElementById('mobile-menu-button');
+      const mobileMenu = document.getElementById('mobile-menu');
+      
+      menuButton.addEventListener('click', function() {
+        mobileMenu.classList.toggle('hidden');
+      });
+    });
+  </script>
+</body>
+</html>

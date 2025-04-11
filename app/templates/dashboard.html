@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-6">
+  <!-- User Welcome -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h1 class="text-2xl md:text-3xl font-garamond text-irish-green mb-2">Welcome, {{ user.username }}!</h1>
+    <p class="text-gray-600">Here's your quiz league status</p>
+  </div>
+  
+  <!-- Stats Overview -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white p-6 rounded-lg shadow-md text-center">
+      <i class="fas fa-users text-irish-green text-2xl mb-2"></i>
+      <h3 class="font-semibold text-lg mb-1">Your Teams</h3>
+      <p class="text-3xl font-bold">{{ team_count }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md text-center">
+      <i class="fas fa-star text-golden-ale text-2xl mb-2"></i>
+      <h3 class="font-semibold text-lg mb-1">Total Points</h3>
+      <p class="text-3xl font-bold">{{ total_points }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md text-center">
+      <i class="fas fa-trophy text-irish-green text-2xl mb-2"></i>
+      <h3 class="font-semibold text-lg mb-1">Best Ranking</h3>
+      <p class="text-3xl font-bold">{% if best_rank %}#{{ best_rank }}{% else %}-{% endif %}</p>
+    </div>
+  </div>
+  
+  <!-- Recent Activity -->
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-xl md:text-2xl font-garamond font-semibold text-irish-green mb-4">Recent Activity</h2>
+    {% if recent_activity %}
+      <div class="space-y-3">
+        {% for activity in recent_activity %}
+          <div class="flex items-center border-b pb-3">
+            {% if activity.type == 'qr_redeem' %}
+              <div class="bg-green-100 p-2 rounded-full mr-3">
+                <i class="fas fa-qrcode text-irish-green"></i>
+              </div>
+              <div>
+                <p class="font-medium">You redeemed a QR code for {{ activity.points }} points</p>
+                <p class="text-sm text-gray-600">Team: {{ activity.team_name }} • {{ activity.date }}</p>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 italic">No recent activity to show</p>
+    {% endif %}
+  </div>
+  
+  <!-- Quick Actions -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-xl font-garamond font-semibold text-irish-green mb-4">Your Teams</h2>
+      {% if teams %}
+        <div class="space-y-3">
+          {% for team in teams %}
+            <div class="flex justify-between items-center border-b pb-2">
+              <div>
+                <p class="font-medium">{{ team.name }}</p>
+                <p class="text-sm text-gray-600">{{ team_points[team.id].points }} points • Rank #{{ team_points[team.id].rank }}</p>
+              </div>
+              <div class="flex items-center">
+                {% if team.id in admin_team_ids %}
+                  <span class="bg-golden-ale text-black-stout text-xs px-2 py-1 rounded-full mr-3">Admin</span>
+                {% endif %}
+                <a href="/teams/{{ team.id }}" class="text-irish-green hover:underline">View</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-gray-500 italic">You haven't joined any teams yet</p>
+      {% endif %}
+      <div class="mt-4">
+        <a href="/teams/" class="inline-block bg-irish-green text-white px-4 py-2 rounded-md text-sm">
+          {% if teams %}Manage Teams{% else %}Join a Team{% endif %}
+        </a>
+      </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-xl font-garamond font-semibold text-irish-green mb-4">Redeem Code</h2>
+      <p class="mb-4">Have a QR code from your quiz master? Scan or enter it here to claim points!</p>
+      <div class="flex flex-col space-y-3">
+        <a href="/dashboard/scan" class="bg-irish-green text-white px-4 py-2 rounded-md flex items-center justify-center">
+          <i class="fas fa-camera mr-2"></i> Scan QR Code
+        </a>
+        <form action="/redeem/manual" method="post" class="flex">
+          <input type="text" name="code" placeholder="Or enter code manually" 
+                class="flex-grow border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green">
+          <button type="submit" class="bg-golden-ale text-black-stout px-4 py-2 rounded-r-md">Submit</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Leaderboard Preview -->
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-garamond font-semibold text-irish-green">Leaderboard Preview</h2>
+      <a href="/leaderboard" class="text-irish-green hover:underline">View Full Leaderboard</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-irish-green text-white">
+          <tr>
+            <th class="py-2 px-4 text-left rounded-tl-lg">Rank</th>
+            <th class="py-2 px-4 text-left">Team</th>
+            <th class="py-2 px-4 text-right rounded-tr-lg">Points</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          <!-- This would be populated with real data from the backend -->
+          <tr>
+            <td class="py-2 px-4 font-medium">1</td>
+            <td class="py-2 px-4">Quiz Masters</td>
+            <td class="py-2 px-4 text-right font-medium">287</td>
+          </tr>
+          <tr>
+            <td class="py-2 px-4 font-medium">2</td>
+            <td class="py-2 px-4">Trivia Titans</td>
+            <td class="py-2 px-4 text-right font-medium">215</td>
+          </tr>
+          <tr>
+            <td class="py-2 px-4 font-medium">3</td>
+            <td class="py-2 px-4">Beer Brainiacs</td>
+            <td class="py-2 px-4 text-right font-medium">194</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

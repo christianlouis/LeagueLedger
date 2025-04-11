@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Team Header -->
+  <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="bg-irish-green p-6">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <h1 class="text-2xl md:text-3xl font-bold text-white">{{ team.name }}</h1>
+          <div class="flex items-center space-x-2 text-green-100">
+            <span><i class="fas fa-trophy mr-1"></i> Rank #{{ team_rank }}</span>
+            <span class="hidden md:inline">•</span>
+            <span><i class="fas fa-star mr-1"></i> {{ total_points }} Points</span>
+            <span class="hidden md:inline">•</span>
+            <span><i class="fas fa-users mr-1"></i> {{ team_members|length }} Members</span>
+          </div>
+        </div>
+        <div>
+          <button class="bg-white text-irish-green font-medium py-2 px-4 rounded-md hover:bg-opacity-90">
+            <i class="fas fa-share-alt mr-1"></i> Share Team
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Team Stats -->
+    <div class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 mb-1">POINTS THIS MONTH</h3>
+          <p class="text-2xl font-bold">{{ points_this_month }}</p>
+          <p class="text-sm {% if point_change_positive %}text-green-600{% else %}text-red-600{% endif %}">
+            <i class="fas {% if point_change_positive %}fa-arrow-up{% else %}fa-arrow-down{% endif %} mr-1"></i> 
+            {{ point_change|abs }} from last month
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 mb-1">BEST PERFORMANCE</h3>
+          <p class="text-2xl font-bold">1st Place</p>
+          <p class="text-sm text-gray-600">August 12, 2023</p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 mb-1">TEAM FOUNDED</h3>
+          <p class="text-2xl font-bold">{{ days_ago }} days ago</p>
+          <p class="text-sm text-gray-600">{{ founded_date }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Team Members & Performance -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Team Members -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-irish-green">Team Members</h2>
+        <button class="text-irish-green hover:text-opacity-80">
+          <i class="fas fa-user-plus"></i> Invite
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        {% for member in team_members %}
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="w-10 h-10 rounded-full bg-gray-200 mr-3 overflow-hidden">
+              <img src="https://via.placeholder.com/40" alt="User" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <p class="font-medium">{{ member.user.username }}</p>
+              <p class="text-xs text-gray-500">Joined {{ member.joined }}</p>
+            </div>
+          </div>
+          {% if member.is_admin %}
+          <span class="bg-golden-ale text-black-stout text-xs px-2 py-1 rounded-full">Captain</span>
+          {% else %}
+          <span class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">Member</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    
+    <!-- Performance Chart -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-semibold text-irish-green mb-4">Team Performance</h2>
+      
+      <!-- Placeholder for a chart - in real app, use Chart.js or similar -->
+      <div class="bg-gray-100 p-4 rounded-lg h-64 flex items-center justify-center">
+        <div class="text-center">
+          <i class="fas fa-chart-line text-5xl text-irish-green mb-2"></i>
+          <p class="text-gray-500">Performance chart would appear here</p>
+        </div>
+      </div>
+      
+      <div class="mt-4 space-y-3">
+        <div class="flex justify-between items-center">
+          <p>Last quiz night</p>
+          <p class="font-medium">{{ performance.last_quiz }}</p>
+        </div>
+        <div class="flex justify-between items-center">
+          <p>Average per quiz</p>
+          <p class="font-medium">{{ performance.average }}</p>
+        </div>
+        <div class="flex justify-between items-center">
+          <p>Best streak</p>
+          <p class="font-medium">{{ performance.best_streak }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Recent Activity -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-xl font-semibold text-irish-green mb-4">Recent Activity</h2>
+    
+    <div class="space-y-4">
+      {% for activity in activities %}
+        {% if activity.type == 'points' %}
+        <div class="flex items-start">
+          <div class="bg-green-100 p-2 rounded-full mr-3">
+            <i class="fas fa-trophy text-irish-green"></i>
+          </div>
+          <div>
+            <p class="font-medium">Earned {{ activity.points }} points in "{{ activity.event }}"</p>
+            <p class="text-sm text-gray-600">{{ activity.date }}</p>
+          </div>
+        </div>
+        {% elif activity.type == 'join' %}
+        <div class="flex items-start">
+          <div class="bg-blue-100 p-2 rounded-full mr-3">
+            <i class="fas fa-user-plus text-blue-700"></i>
+          </div>
+          <div>
+            <p class="font-medium">{{ activity.user }} joined the team</p>
+            <p class="text-sm text-gray-600">{{ activity.date }}</p>
+          </div>
+        </div>
+        {% elif activity.type == 'achievement' %}
+        <div class="flex items-start">
+          <div class="bg-golden-ale bg-opacity-20 p-2 rounded-full mr-3">
+            <i class="fas fa-medal text-golden-ale"></i>
+          </div>
+          <div>
+            <p class="font-medium">Achieved {{ activity.achievement }} in "{{ activity.event }}"</p>
+            <p class="text-sm text-gray-600">{{ activity.date }}</p>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    
+    <div class="mt-6 text-center">
+      <a href="#" class="text-irish-green hover:underline">View Full History</a>
+    </div>
+  </div>
+  
+  <!-- Team Management -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-xl font-semibold text-irish-green mb-4">Team Management</h2>
+    
+    <div class="space-y-6">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Team Name</label>
+        <div class="flex">
+          <input type="text" value="{{ team.name }}" class="flex-grow border border-gray-300 rounded-l-md px-3 py-2" {% if not is_user_admin %}disabled{% endif %}>
+          <button class="bg-irish-green text-white px-4 py-2 rounded-r-md" {% if not is_user_admin %}disabled{% endif %}>Save</button>
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Team Privacy</label>
+        <div class="flex items-center">
+          <input type="checkbox" id="public-team" name="is_public" class="mr-2" 
+                 {% if team.is_public %}checked{% endif %} 
+                 {% if not is_user_admin %}disabled{% endif %}>
+          <label for="public-team">Make team publicly joinable (no invitation needed)</label>
+        </div>
+      </div>
+      
+      <div class="pt-4 border-t">
+        <button class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md">
+          Leave Team
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+    <!-- Profile Header -->
+    <div class="bg-irish-green text-white p-6">
+      <div class="flex flex-col sm:flex-row items-center">
+        <div class="w-24 h-24 rounded-full bg-white border-4 border-white overflow-hidden mb-4 sm:mb-0 sm:mr-6">
+          <img src="https://via.placeholder.com/150" alt="Profile" class="w-full h-full object-cover">
+        </div>
+        <div class="text-center sm:text-left">
+          <h1 class="text-2xl font-bold">John Quizmaster</h1>
+          <p class="text-green-100">Member since October 2022</p>
+          <p class="mt-2">
+            <span class="bg-golden-ale text-black-stout text-xs px-2 py-1 rounded-full font-medium mr-1">Quiz Master</span>
+            <span class="bg-white text-irish-green text-xs px-2 py-1 rounded-full font-medium">Team Captain</span>
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Profile Content -->
+    <div class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Left Column: Personal Info -->
+        <div class="md:col-span-1">
+          <h2 class="text-xl font-semibold text-irish-green mb-4">Personal Information</h2>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-600">Display Name</label>
+              <div class="mt-1 flex">
+                <input type="text" value="John Quizmaster" readonly class="flex-grow bg-gray-100 border border-gray-300 rounded-l-md px-3 py-2">
+                <button class="bg-irish-green text-white px-3 py-2 rounded-r-md">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-600">Email</label>
+              <div class="mt-1 flex">
+                <input type="email" value="john@example.com" readonly class="flex-grow bg-gray-100 border border-gray-300 rounded-l-md px-3 py-2">
+                <button class="bg-irish-green text-white px-3 py-2 rounded-r-md">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-600">Password</label>
+              <div class="mt-1">
+                <button class="w-full bg-golden-ale hover:bg-opacity-90 text-black font-medium py-2 px-4 rounded-md transition">
+                  Change Password
+                </button>
+              </div>
+            </div>
+            
+            <div class="pt-4">
+              <button class="w-full bg-irish-green hover:bg-opacity-90 text-white font-medium py-2 px-4 rounded-md transition">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right Column: Stats & Teams -->
+        <div class="md:col-span-2">
+          <h2 class="text-xl font-semibold text-irish-green mb-4">Your Statistics</h2>
+          
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-cream-white p-4 rounded-lg text-center">
+              <p class="text-sm text-gray-600">Total Points</p>
+              <p class="text-2xl font-bold text-irish-green">378</p>
+            </div>
+            <div class="bg-cream-white p-4 rounded-lg text-center">
+              <p class="text-sm text-gray-600">QR Codes Redeemed</p>
+              <p class="text-2xl font-bold text-irish-green">24</p>
+            </div>
+            <div class="bg-cream-white p-4 rounded-lg text-center">
+              <p class="text-sm text-gray-600">Teams Joined</p>
+              <p class="text-2xl font-bold text-irish-green">3</p>
+            </div>
+            <div class="bg-cream-white p-4 rounded-lg text-center">
+              <p class="text-sm text-gray-600">Best Position</p>
+              <p class="text-2xl font-bold text-irish-green">#2</p>
+            </div>
+          </div>
+          
+          <h2 class="text-xl font-semibold text-irish-green mb-4">Your Teams</h2>
+          <div class="space-y-4">
+            <div class="border rounded-lg overflow-hidden">
+              <div class="bg-cream-white px-4 py-3 flex justify-between items-center">
+                <div class="font-medium">Quiz Wizards</div>
+                <span class="bg-golden-ale text-black-stout text-xs px-2 py-1 rounded-full">Captain</span>
+              </div>
+              <div class="px-4 py-3 flex justify-between items-center">
+                <div>
+                  <p class="text-sm">Current Points: <span class="font-bold">187</span></p>
+                  <p class="text-sm text-gray-600">Current Rank: #4</p>
+                </div>
+                <a href="/teams/1" class="text-irish-green hover:underline text-sm">View Team</a>
+              </div>
+            </div>
+            
+            <div class="border rounded-lg overflow-hidden">
+              <div class="bg-cream-white px-4 py-3 flex justify-between items-center">
+                <div class="font-medium">Trivia Titans</div>
+                <span class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">Member</span>
+              </div>
+              <div class="px-4 py-3 flex justify-between items-center">
+                <div>
+                  <p class="text-sm">Current Points: <span class="font-bold">215</span></p>
+                  <p class="text-sm text-gray-600">Current Rank: #2</p>
+                </div>
+                <a href="/teams/2" class="text-irish-green hover:underline text-sm">View Team</a>
+              </div>
+            </div>
+            
+            <a href="/teams/" class="block text-center text-irish-green hover:underline text-sm">
+              <i class="fas fa-plus mr-1"></i> Join or Create Another Team
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Danger Zone -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-xl font-semibold text-red-600 mb-4">Danger Zone</h3>
+    <p class="text-gray-600 mb-4">The following actions are irreversible. Please proceed with caution.</p>
+    
+    <div class="flex flex-col sm:flex-row gap-4">
+      <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md transition">
+        Delete Account
+      </button>
+      <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md transition">
+        Leave All Teams
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

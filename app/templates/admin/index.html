@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-irish-green mb-6">Admin Dashboard</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for model_key, display_name in models %}
+            <div class="bg-cream-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+                <h3 class="text-xl font-bold text-irish-green mb-3">{{ display_name }}</h3>
+                <div class="flex items-center justify-between mt-4">
+                    <a href="/admin/{{ model_key }}" class="bg-irish-green text-white px-4 py-2 rounded-md hover:bg-opacity-90 transition">
+                        Manage
+                    </a>
+                    <a href="/admin/{{ model_key }}/new" class="text-irish-green hover:underline">
+                        <i class="fas fa-plus"></i> Add New
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="mt-10 pt-6 border-t border-gray-200">
+            <h2 class="text-xl font-bold text-irish-green mb-4">Quick Actions</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <a href="/qr/generate/10" class="bg-white border border-irish-green text-irish-green hover:bg-irish-green hover:text-white px-4 py-3 rounded-md transition flex items-center">
+                    <i class="fas fa-qrcode mr-2"></i> Generate QR Code (10 points)
+                </a>
+                <a href="/teams/" class="bg-white border border-irish-green text-irish-green hover:bg-irish-green hover:text-white px-4 py-3 rounded-md transition flex items-center">
+                    <i class="fas fa-users mr-2"></i> View Teams
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

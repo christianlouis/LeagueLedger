@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-col items-center">
+  <!-- Hero Section -->
+  <section class="w-full py-8 md:py-16 text-center">
+    <h1 class="text-4xl md:text-6xl font-bold text-irish-green mb-4">PubQuiz League Tracker</h1>
+    <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Track your team's triumphs across quiz nights and climb the leaderboard.</p>
+    <div class="flex flex-col sm:flex-row justify-center gap-4">
+      <a href="/teams/" class="bg-irish-green text-white font-semibold px-6 py-3 rounded-md shadow-md hover:bg-opacity-90 transition">Join a Team</a>
+      <a href="/dashboard" class="bg-golden-ale text-black-stout font-semibold px-6 py-3 rounded-md shadow-md hover:bg-opacity-90 transition">My Dashboard</a>
+    </div>
+  </section>
+  
+  <!-- Features -->
+  <section class="w-full py-12 bg-white rounded-lg shadow-md my-8">
+    <div class="container mx-auto">
+      <h2 class="text-3xl font-bold text-irish-green text-center mb-10">How It Works</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+        <div class="flex flex-col items-center text-center">
+          <div class="bg-cream-white p-4 rounded-full mb-4">
+            <i class="fas fa-users text-irish-green text-3xl"></i>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Create or Join Teams</h3>
+          <p>Join existing quiz teams or create your own to start competing.</p>
+        </div>
+        
+        <div class="flex flex-col items-center text-center">
+          <div class="bg-cream-white p-4 rounded-full mb-4">
+            <i class="fas fa-qrcode text-irish-green text-3xl"></i>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Scan QR Codes</h3>
+          <p>Earn points by scanning QR codes distributed by quiz masters.</p>
+        </div>
+        
+        <div class="flex flex-col items-center text-center">
+          <div class="bg-cream-white p-4 rounded-full mb-4">
+            <i class="fas fa-trophy text-irish-green text-3xl"></i>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Climb the Leaderboard</h3>
+          <p>Track your progress and compete to be the top team in the league.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Call to Action -->
+  <section class="w-full py-12 bg-irish-green rounded-lg shadow-md my-8 text-center">
+    <h2 class="text-3xl font-bold text-white mb-4">Ready to Join the League?</h2>
+    <p class="text-white text-xl mb-6">Get started now and track your pub quiz achievements!</p>
+    <a href="/register" class="bg-golden-ale text-black-stout font-semibold px-8 py-3 rounded-md shadow-md hover:bg-opacity-90 transition">Sign Up Now</a>
+  </section>
+</div>
+{% endblock %}

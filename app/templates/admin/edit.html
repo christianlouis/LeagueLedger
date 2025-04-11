@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <!-- Header -->
+        <h1 class="text-2xl font-bold text-irish-green mb-6">
+            {% if is_new %}Create{% else %}Edit{% endif %} {{ display_name[:-1] if display_name.endswith('s') else display_name }}
+        </h1>
+        
+        <!-- Form -->
+        <form method="post" action="/admin/{{ model_name }}{% if is_new %}/new{% else %}/{{ record.id }}{% endif %}" class="space-y-6">
+            {% for column_name, column_info in columns_info.items() %}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <label for="{{ column_name }}" class="block text-sm font-medium text-gray-700">
+                        {{ column_name|replace('_', ' ')|title }}
+                        {% if column_info.primary_key %}
+                            <span class="ml-1 text-xs text-irish-green">(Primary Key)</span>
+                        {% endif %}
+                        {% if column_info.foreign_key %}
+                            <span class="ml-1 text-xs text-blue-600">(Foreign Key)</span>
+                        {% endif %}
+                    </label>
+                    <div class="md:col-span-2">
+                        {% if column_info.primary_key and is_new %}
+                            <!-- For new records, primary key is often auto-generated -->
+                            <input type="text" id="{{ column_name }}" name="{{ column_name }}" placeholder="Auto-generated"
+                                class="bg-gray-100 border border-gray-300 text-gray-500 rounded-md px-3 py-2 w-full"
+                                {% if not column_info.nullable %}disabled{% endif %}>
+                        
+                        {% elif column_info.foreign_key and column_name in foreign_key_options %}
+                            <!-- Foreign key dropdown -->
+                            <select id="{{ column_name }}" name="{{ column_name }}" 
+                                class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-irish-green"
+                                {% if not column_info.nullable %}required{% endif %}>
+                                
+                                {% if column_info.nullable %}
+                                    <option value="">-- None --</option>
+                                {% endif %}
+                                
+                                {% for value, label in foreign_key_options[column_name] %}
+                                    <option value="{{ value }}" {% if record and record[column_name] == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            
+                        {% elif column_info.type.startswith('BOOLEAN') %}
+                            <!-- Boolean field -->
+                            <div class="flex items-center">
+                                <input type="checkbox" id="{{ column_name }}" name="{{ column_name }}" class="h-5 w-5"
+                                    value="True" {% if record and record[column_name] %}checked{% endif %}>
+                                <span class="ml-2 text-sm text-gray-600">Yes</span>
+                            </div>
+                            
+                        {% elif 'text' in column_info.type.lower() %}
+                            <!-- Text area for longer text -->
+                            <textarea id="{{ column_name }}" name="{{ column_name }}" rows="4"
+                                class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-irish-green"
+                                {% if not column_info.nullable %}required{% endif %}>{{ record[column_name] if record else '' }}</textarea>
+                                
+                        {% else %}
+                            <!-- Standard input field -->
+                            <input type="{{ 'number' if 'int' in column_info.type.lower() else 'text' }}" 
+                                id="{{ column_name }}" name="{{ column_name }}" 
+                                value="{{ record[column_name] if record and record[column_name] is not none else '' }}"
+                                class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-irish-green"
+                                {% if not column_info.nullable and not column_info.primary_key %}required{% endif %}>
+                        {% endif %}
+                        
+                        {% if column_info.nullable %}
+                            <p class="text-xs text-gray-500 mt-1">Optional field</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+            
+            <!-- Form buttons -->
+            <div class="flex justify-end space-x-4 pt-6 border-t">
+                <a href="/admin/{{ model_name }}" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition">
+                    Cancel
+                </a>
+                <button type="submit" class="px-4 py-2 bg-irish-green text-white rounded-md hover:bg-opacity-90 transition">
+                    {% if is_new %}Create{% else %}Update{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Back links -->
+    <div class="mt-6 text-center">
+        <a href="/admin/{{ model_name }}" class="text-irish-green hover:underline mr-4">
+            <i class="fas fa-list mr-1"></i> Back to {{ display_name }}
+        </a>
+        <a href="/admin/" class="text-irish-green hover:underline">
+            <i class="fas fa-tachometer-alt mr-1"></i> Back to Admin Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
