@@ -13,7 +13,6 @@ import inspect as py_inspect
 from ..db import SessionLocal, Base
 from ..models import User, Team, TeamMembership, QRTicket
 from ..templates_config import templates
-from ..auth import require_admin
 
 router = APIRouter()
 
@@ -65,7 +64,6 @@ def get_relationships(model_class: Type[Base]) -> Dict[str, str]:
     return relationships
 
 @router.get("/", response_class=HTMLResponse)
-@require_admin
 async def admin_home(request: Request):
     """Admin dashboard home."""
     model_list = [(key, name) for key, (_, name) in MODELS.items()]
@@ -75,7 +73,6 @@ async def admin_home(request: Request):
     )
 
 @router.get("/{model_name}", response_class=HTMLResponse)
-@require_admin
 async def list_records(
     request: Request, 
     model_name: str, 
@@ -127,7 +124,6 @@ async def list_records(
     )
 
 @router.get("/{model_name}/new", response_class=HTMLResponse)
-@require_admin
 async def create_record_form(
     request: Request, 
     model_name: str,
@@ -168,7 +164,6 @@ async def create_record_form(
     )
 
 @router.post("/{model_name}/new")
-@require_admin
 async def create_record(
     request: Request,
     model_name: str,
@@ -217,7 +212,6 @@ async def create_record(
     return RedirectResponse(f"/admin/{model_name}", status_code=303)
 
 @router.get("/{model_name}/{record_id}", response_class=HTMLResponse)
-@require_admin
 async def edit_record_form(
     request: Request, 
     model_name: str,
@@ -269,7 +263,6 @@ async def edit_record_form(
     )
 
 @router.post("/{model_name}/{record_id}")
-@require_admin
 async def update_record(
     request: Request,
     model_name: str,
@@ -318,7 +311,6 @@ async def update_record(
     return RedirectResponse(f"/admin/{model_name}", status_code=303)
 
 @router.get("/{model_name}/{record_id}/delete")
-@require_admin
 async def delete_record(
     request: Request,
     model_name: str,

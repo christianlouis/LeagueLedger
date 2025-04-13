@@ -6,10 +6,15 @@ import random
 from datetime import datetime, timedelta
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 
 from .models import User, Team, TeamMembership, QRTicket
 from .db import SessionLocal
-from .auth import get_password_hash
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
 
 def table_has_column(engine, table_name, column_name):
     """Check if a table has a specific column."""

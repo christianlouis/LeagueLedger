@@ -19,6 +19,14 @@
     <div class="mt-4 text-sm text-gray-500">
       Make sure the QR code is well-lit and clearly visible
     </div>
+
+    <!-- Camera Selection Dropdown -->
+    <div class="mt-4">
+      <label for="camera-select" class="block text-sm font-medium text-gray-700">Select Camera:</label>
+      <select id="camera-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-irish-green focus:border-irish-green sm:text-sm rounded-md">
+        <option value="">Loading cameras...</option>
+      </select>
+    </div>
     
     <!-- Manual Entry Fallback -->
     <div class="mt-8 border-t pt-6">
@@ -78,50 +86,65 @@
 <!-- HTML5 QR Code Scanner Library -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', async function() {
+    const cameraSelect = document.getElementById('camera-select');
     const html5QrCode = new Html5Qrcode("qr-reader");
     const qrOverlay = document.getElementById('scanner-overlay');
-    
-    // Config
-    const config = { fps: 10, qrbox: 250 };
-    
-    // Success function
-    function onScanSuccess(decodedText, decodedResult) {
-      // Stop scanning
-      html5QrCode.stop();
-      
-      // Show loading message
-      qrOverlay.innerHTML = '<div class="text-white text-center"><i class="fas fa-circle-notch fa-spin text-3xl mb-3"></i><p>Code detected!</p><p>Redirecting...</p></div>';
-      qrOverlay.style.backgroundColor = 'rgba(0, 104, 55, 0.8)';  // Irish green with opacity
-      
-      // Redirect to redeem page
-      window.location.href = '/redeem/' + decodedText;
+
+    // Fetch available cameras
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      cameraSelect.innerHTML = devices.map(device => `<option value="${device.id}">${device.label || 'Camera'}</option>`).join('');
+    } catch (error) {
+      console.error("Error fetching cameras: ", error);
+      cameraSelect.innerHTML = '<option value="">No cameras found</option>';
     }
 
-    // Start scanner
-    html5QrCode.start(
-      { facingMode: "environment" },
-      config,
-      onScanSuccess,
-      (errorMessage) => {
-        // Handle error if needed
-        console.log(errorMessage);
-      })
-      .then(() => {
-        // Scanner started successfully
-        qrOverlay.style.display = 'none';
-      })
-      .catch((err) => {
-        // Update overlay with error message
-        qrOverlay.innerHTML = `
-          <div class="text-white text-center">
-            <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
-            <p>Camera access denied or not available</p>
-            <p class="text-sm mt-2">Please use manual entry below</p>
-          </div>
-        `;
-        qrOverlay.style.backgroundColor = 'rgba(178, 34, 34, 0.8)';  // Guinness red with opacity
-      });
+    // Start scanner on camera selection
+    cameraSelect.addEventListener('change', async function() {
+      const selectedCameraId = cameraSelect.value;
+      if (selectedCameraId) {
+        try {
+          // Stop the scanner if it is running
+          if (html5QrCode && html5QrCode.isScanning) {
+            await html5QrCode.stop();
+          }
+
+          // Start the scanner with the newly selected camera
+          await html5QrCode.start(
+            { deviceId: { exact: selectedCameraId } },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onScanSuccess,
+            (errorMessage) => {
+              if (!errorMessage.includes("No MultiFormat Readers")) {
+                console.log("QR code parse error: ", errorMessage);
+              }
+            }
+          );
+          qrOverlay.style.display = 'none';
+        } catch (err) {
+          console.error("Error switching camera: ", err);
+        }
+      }
+    });
+
+    // Success function
+    function onScanSuccess(decodedText, decodedResult) {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          console.log("Scanner stopped successfully.");
+          qrOverlay.innerHTML = '<div class="text-white text-center"><i class="fas fa-circle-notch fa-spin text-3xl mb-3"></i><p>Code detected!</p><p>Redirecting...</p></div>';
+          qrOverlay.style.backgroundColor = 'rgba(0, 104, 55, 0.8)';
+          qrOverlay.style.display = 'flex';
+          window.location.href = '/redeem/' + decodedText;
+        }).catch(err => {
+          console.error("Error stopping the scanner: ", err);
+          window.location.href = '/redeem/' + decodedText;
+        });
+      } else {
+        window.location.href = '/redeem/' + decodedText;
+      }
+    }
   });
 </script>
 {% endblock %}

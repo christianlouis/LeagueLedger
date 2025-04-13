@@ -26,3 +26,6 @@ python-dotenv>=1.0.0
 email-validator>=2.0.0
 pydantic>=2.3.0
 qrcode>=7.4.2
+
+# Image processing library for QR code generation
+Pillow>=9.0.0

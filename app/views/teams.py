@@ -13,8 +13,6 @@ from ..db import SessionLocal
 from ..models import Team, TeamMembership, User, QRTicket, TeamAchievement
 from ..schemas import TeamCreate
 from ..templates_config import templates
-from ..dependencies import get_user_from_session
-from ..auth import require_login
 
 router = APIRouter()
 
@@ -30,12 +28,7 @@ def list_teams(request: Request, db: Session = Depends(get_db)):
     teams = db.query(Team).all()
     
     # Get the user's teams to highlight teams they're already in
-    user = get_user_from_session(request, db)
     user_team_ids = []
-    
-    if user:
-        memberships = db.query(TeamMembership).filter_by(user_id=user.id).all()
-        user_team_ids = [m.team_id for m in memberships]
     
     return templates.TemplateResponse(
         "teams.html", 
@@ -54,43 +47,28 @@ def list_teams(request: Request, db: Session = Depends(get_db)):
     )
 
 @router.post("/create")
-@require_login
 def create_team(request: Request, name: str = Form(...), db: Session = Depends(get_db)):
-    user = get_user_from_session(request, db)
-    if not user:
-        return RedirectResponse("/auth/login?next=/teams/", status_code=302)
-    
     # Create team
     new_team = Team(name=name)
     db.add(new_team)
     db.commit()
     db.refresh(new_team)
 
-    # Make user admin of team
-    membership = TeamMembership(user_id=user.id, team_id=new_team.id, is_admin=True)
-    db.add(membership)
-    db.commit()
-    
     return RedirectResponse("/teams/", status_code=303)
 
 @router.post("/join/{team_id}")
-@require_login
 def join_team(request: Request, team_id: int, db: Session = Depends(get_db)):
-    user = get_user_from_session(request, db)
-    if not user:
-        return RedirectResponse("/auth/login?next=/teams/", status_code=302)
-    
     team = db.query(Team).filter_by(id=team_id).first()
     if not team:
         return RedirectResponse("/teams/", status_code=303)
 
     # Check if membership exists
-    existing = db.query(TeamMembership).filter_by(user_id=user.id, team_id=team.id).first()
+    existing = db.query(TeamMembership).filter_by(team_id=team.id).first()
     if existing:
         return RedirectResponse("/teams/", status_code=303)
 
     # Create membership
-    new_member = TeamMembership(user_id=user.id, team_id=team.id, is_admin=False)
+    new_member = TeamMembership(team_id=team.id, is_admin=False)
     db.add(new_member)
     db.commit()
     
@@ -104,12 +82,6 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
-    # Get current user from session
-    user = get_user_from_session(request, db)
-    if not user:
-        # If no authenticated user, redirect to login
-        return RedirectResponse("/auth/login?next=/teams/"+str(team_id), status_code=302)
-    
     # Get team members with admin status
     memberships = db.query(TeamMembership).filter_by(team_id=team_id).all()
     team_members = []
@@ -118,10 +90,6 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
     for membership in memberships:
         member = db.query(User).filter_by(id=membership.user_id).first()
         if member:
-            # Check if current user is admin
-            if membership.user_id == user.id and membership.is_admin:
-                is_user_admin = True
-                
             # Use joined_at if available, otherwise use placeholder
             joined_date = getattr(membership, 'joined_at', None) or datetime.now() - timedelta(days=random.randint(30, 180))
             if isinstance(joined_date, datetime):
@@ -237,14 +205,12 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
             "activities": activities,
             "performance": performance,
             "is_user_admin": is_user_admin,
-            "user": user,
             "days_ago": days_ago,
             "founded_date": founded_date_str
         }
     )
 
 @router.post("/{team_id}/update")
-@require_login
 def update_team(
     request: Request,
     team_id: int, 
@@ -253,10 +219,6 @@ def update_team(
     db: Session = Depends(get_db)
 ):
     """Update team details."""
-    user = get_user_from_session(request, db)
-    if not user:
-        return RedirectResponse("/auth/login?next=/teams/"+str(team_id), status_code=302)
-        
     team = db.query(Team).filter_by(id=team_id).first()
     
     if not team:
@@ -264,7 +226,6 @@ def update_team(
     
     # Check if user is admin
     membership = db.query(TeamMembership).filter_by(
-        user_id=user.id, 
         team_id=team.id,
         is_admin=True
     ).first()
