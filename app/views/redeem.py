@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from ..db import SessionLocal
 from ..models import QRTicket, User, Team, TeamMembership
 from ..templates_config import templates
+from ..dependencies import get_user_from_session
+from ..auth import require_login
 
 router = APIRouter()
 
@@ -24,19 +26,30 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
     Display a page to let the user choose which team to apply points to.
     If not logged in, prompt them.
     """
-    # In real app, you'd check user session or redirect to login
     ticket = db.query(QRTicket).filter_by(code=code, used=False).first()
     if not ticket:
-        return "Invalid or already used code."
+        return templates.TemplateResponse(
+            "error.html", 
+            {
+                "request": request,
+                "error_title": "Invalid Code",
+                "error_message": "This code is invalid or has already been used."
+            }
+        )
 
-    # Skeleton: you'd get the user's teams from session user
-    # For now, we mock a user ID = 1:
-    user = db.query(User).filter_by(id=1).first()
+    # Get the authenticated user
+    user = get_user_from_session(request, db)
     if not user:
-        return "User not found. Please log in."
+        # Store the redeem URL for after login - with try/except
+        try:
+            if hasattr(request, "session") and isinstance(request.session, dict):
+                request.session["redirect_after_login"] = f"/redeem/{code}"
+        except Exception as e:
+            print(f"Error setting redirect URL in session: {str(e)}")
+        return RedirectResponse(url="/auth/login", status_code=302)
 
-    # This is where you'd show the team selection or "create new team" UI
-    user_teams = [m.team for m in user.memberships]
+    # Get user teams
+    user_teams = [m.team for m in user.memberships] if hasattr(user, 'memberships') else []
 
     return templates.TemplateResponse("redeem.html", {
         "request": request,
@@ -45,6 +58,7 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
     })
 
 @router.post("/apply/{code}")
+@require_login
 async def apply_code(
     request: Request,
     code: str,
@@ -54,6 +68,11 @@ async def apply_code(
     Apply the QR code to a selected team (if user is a member),
     or set to pending if user isn't a member yet.
     """
+    # Get the authenticated user
+    user = get_user_from_session(request, db)
+    if not user:
+        return RedirectResponse(url=f"/auth/login?next=/redeem/{code}", status_code=302)
+
     # Get form data
     form_data = await request.form()
     team_id = int(form_data.get("team_id", 0))
@@ -79,8 +98,6 @@ async def apply_code(
             }
         )
 
-    # For skeleton, assume user = 1
-    user = db.query(User).filter_by(id=1).first()
     team = db.query(Team).filter_by(id=team_id).first()
     
     if not team:
@@ -129,6 +146,7 @@ async def apply_code(
         )
 
 @router.post("/manual")
+@require_login
 async def manual_code_entry(
     request: Request,
     code: str = Form(...),
@@ -138,6 +156,11 @@ async def manual_code_entry(
     Handle manual code entry from the form.
     This redirects to the normal redeem flow after validating the code.
     """
+    # Make sure the user is authenticated
+    user = get_user_from_session(request, db)
+    if not user:
+        return RedirectResponse(url="/auth/login?next=/dashboard/", status_code=302)
+        
     # Check if the code exists
     ticket = db.query(QRTicket).filter_by(code=code, used=False).first()
     

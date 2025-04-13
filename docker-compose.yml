@@ -48,5 +48,21 @@ services:
     volumes:
       - ./:/app:delegated
 
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: pubquiz_phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: pubquiz_user
+      PMA_PASSWORD: pubquiz_pass
+    ports:
+      - "8001:80"
+
+
 volumes:
   db_data:

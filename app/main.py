@@ -10,7 +10,8 @@ from . import models
 from .templates_config import templates
 from .views import qr, redeem, teams, admin, leaderboard, dashboard
 from .db_init import seed_db
-from .auth import router as auth_router, get_current_user
+from .auth import router as auth_router
+from .dependencies import get_user_from_session
 
 # Create tables on startup
 init_db()
@@ -19,24 +20,26 @@ init_db()
 # In a production app, you would handle this differently
 seed_db()
 
+# Initialize FastAPI app
 app = FastAPI()
 
-# Configure session middleware with environment variables or defaults
+# Configure session middleware settings
 secret_key = os.environ.get("SECRET_KEY", "a-default-secret-key-for-sessions-please-change-this")
 if len(secret_key) < 32:
     print(f"WARNING: Secret key is too short ({len(secret_key)} chars). Recommended: 32+ chars")
 
-# Apply SessionMiddleware FIRST - it must be the first middleware in the stack
+# IMPORTANT: Add SessionMiddleware before anything else
+# This must be the FIRST middleware in the stack
 app.add_middleware(
     SessionMiddleware,
     secret_key=secret_key,
     max_age=int(os.environ.get("SESSION_MAX_AGE", "86400")),  # 24 hours by default
-    same_site="lax",  # Important for security while allowing redirects
+    same_site="lax",
     https_only=os.environ.get("COOKIE_SECURE", "False").lower() == "true",
-    session_cookie="league_ledger_session",  # Custom cookie name
+    session_cookie="league_ledger_session",
 )
 
-# Debug middleware to track session state
+# Debug middleware - ADDED AFTER SessionMiddleware
 @app.middleware("http")
 async def debug_session_middleware(request, call_next):
     """Debug middleware to track session state"""
@@ -44,18 +47,16 @@ async def debug_session_middleware(request, call_next):
         session_cookie = request.cookies.get("league_ledger_session")
         
         print(f"Request path: {request.url.path}")
-        # Instead of checking request.scope, check if we can access the session dict
-        has_session = hasattr(request, "session") and isinstance(request.session, dict)
+        # First check if the session attribute exists properly
+        has_session = hasattr(request, "session")
+        is_dict = has_session and isinstance(request.session, dict)
         print(f"Has session attribute: {has_session}")
+        print(f"Session is dict: {is_dict}")
         print(f"Has session cookie: {session_cookie is not None}")
         
-        # Check session data
-        if hasattr(request, "session"):
-            try:
-                print(f"Session data before: {dict(request.session)}")
-            except (TypeError, AttributeError):
-                # The session might not be dict-like
-                print(f"Session exists but isn't a dictionary")
+        # Safely check session data
+        if has_session and is_dict:
+            print(f"Session data before: {dict(request.session)}")
     except Exception as e:
         print(f"Error in debug middleware (pre): {str(e)}")
     
@@ -63,22 +64,27 @@ async def debug_session_middleware(request, call_next):
     
     try:
         if hasattr(request, "session"):
-            try:
-                print(f"Session data after: {dict(request.session)}")
-            except (TypeError, AttributeError):
-                print(f"Session exists but isn't a dictionary")
+            print(f"Session data after: {dict(request.session)}")
     except Exception as e:
         print(f"Error in debug middleware (post): {str(e)}")
     
     return response
 
-# User context middleware to make user available in templates
+# User context middleware
 @app.middleware("http")
 async def add_user_to_request(request: Request, call_next):
     """Add user to request state and update template globals"""
     try:
-        # Get user from session if available
-        user = get_current_user(request)
+        # Get database connection from context
+        from .db import SessionLocal
+        db = SessionLocal()
+        
+        # Get user from session with safer approach
+        user = None
+        try:
+            user = get_user_from_session(request, db)
+        except Exception as e:
+            print(f"Error getting user for request context: {str(e)}")
         
         # Store user in request.state for route handlers
         request.state.user = user
@@ -88,17 +94,20 @@ async def add_user_to_request(request: Request, call_next):
         
         # Debug output to check user and admin status
         if user:
-            print(f"User in context: {user.get('username')}, Admin: {user.get('is_admin', False)}")
-            
+            print(f"User in context: {user.username}, Admin: {getattr(user, 'is_admin', False)}")
     except Exception as e:
         print(f"Error setting user context: {str(e)}")
+    finally:
+        # Always close the DB connection
+        if 'db' in locals():
+            db.close()
     
     # Process the request
     response = await call_next(request)
     return response
 
-# Routers
-app.include_router(auth_router, prefix="/auth", tags=["Auth"])  # Auth router should be first
+# Routers - include after middleware setup is complete
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(qr.router, prefix="/qr", tags=["QR"])
 app.include_router(redeem.router, prefix="/redeem", tags=["Redeem"])
 app.include_router(teams.router, prefix="/teams", tags=["Teams"])

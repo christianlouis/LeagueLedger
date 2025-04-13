@@ -16,6 +16,7 @@ from passlib.context import CryptContext
 from .db import SessionLocal
 from .templates_config import templates
 from . import models
+from .dependencies import get_user_from_session
 
 # Initialize OAuth
 oauth = OAuth()
@@ -53,15 +54,9 @@ def verify_password(plain_password, hashed_password):
     """Verify password against hash"""
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_current_user(request: Request):
-    """Get current user from session with improved error handling"""
-    try:
-        if "session" not in request.scope:
-            return None
-        return request.session.get("user")
-    except Exception as e:
-        print(f"Error getting user from session: {str(e)}")
-        return None
+def get_current_user(request: Request, db: Session = Depends(get_db)):
+    """Get current user from session"""
+    return get_user_from_session(request, db)
 
 def get_gravatar_url(email):
     """Generate a Gravatar URL for the given email"""
@@ -74,10 +69,12 @@ def require_login(func):
     @wraps(func)
     async def wrapper(request: Request, *args, **kwargs):
         try:
-            if "session" not in request.scope or not request.session.get("user"):
+            db = next(get_db())
+            user = get_user_from_session(request, db)
+            
+            if not user:
                 # Store the current URL for redirecting after login
-                if "session" in request.scope:
-                    request.session["redirect_after_login"] = str(request.url)
+                request.session["redirect_after_login"] = str(request.url)
                 return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
             
             # Check if the wrapped function is a coroutine function
@@ -96,15 +93,14 @@ def require_admin(func):
     @wraps(func)
     async def wrapper(request: Request, *args, **kwargs):
         try:
-            if "session" not in request.scope:
-                return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
-                
-            user = request.session.get("user")
+            db = next(get_db())
+            user = get_user_from_session(request, db)
+            
             if not user:
                 request.session["redirect_after_login"] = str(request.url)
                 return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
             
-            if not user.get("is_admin", False):
+            if not user.is_admin:
                 return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
             
             # Check if the wrapped function is a coroutine function
@@ -121,10 +117,10 @@ def require_admin(func):
 # Routes for authentication
 
 @router.get("/login")
-async def login_page(request: Request):
+async def login_page(request: Request, db: Session = Depends(get_db)):
     """Show login page with appropriate authentication options"""
     # If already logged in, redirect to home
-    if request.session.get("user"):
+    if get_user_from_session(request, db):
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     
     return templates.TemplateResponse(
@@ -153,17 +149,21 @@ async def login(request: Request, db: Session = Depends(get_db)):
             status_code=status.HTTP_302_FOUND
         )
     
-    # Create user session
     # Make sure we use the actual is_admin field from the User model
     is_admin_value = False
     if hasattr(user, "is_admin") and user.is_admin is not None:
         is_admin_value = user.is_admin
     
+    # Store user info in session - STANDARDIZED APPROACH
+    # Store both the user_id (for new code) and the full user dict (for backward compatibility)
+    request.session["user_id"] = user.id
+    
+    # Also store the legacy format for backward compatibility
     request.session["user"] = {
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "is_admin": is_admin_value,  # Use the actual is_admin value from the database
+        "is_admin": is_admin_value,
         "picture": get_gravatar_url(user.email),
         "_permanent": True,
         "created_at": str(user.created_at)
@@ -229,15 +229,18 @@ async def oauth_callback(request: Request, db: Session = Depends(get_db)):
         if hasattr(user, "is_admin") and user.is_admin is not None:
             is_admin_value = user.is_admin
         
-        # Store user info in session
+        # Store user ID in session (new standardized approach)
+        request.session["user_id"] = user.id
+        
+        # Also store legacy user data format
         user_data = {
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "is_active": user.is_active,
-            "is_admin": is_admin_value,  # Set the admin status correctly
+            "is_active": getattr(user, "is_active", True),
+            "is_admin": is_admin_value,
             "_permanent": True,
-            "created_at": str(user.created_at),
+            "created_at": str(getattr(user, "created_at", "")),
         }
         
         # Add picture from OAuth or Gravatar
@@ -265,6 +268,7 @@ async def oauth_callback(request: Request, db: Session = Depends(get_db)):
 async def logout(request: Request):
     """Handle user logout"""
     request.session.pop("user", None)
+    request.session.pop("user_id", None)
     return RedirectResponse(
         url="/auth/login?message=You+have+been+logged+out+successfully", 
         status_code=status.HTTP_302_FOUND
@@ -272,9 +276,9 @@ async def logout(request: Request):
 
 @router.get("/profile")
 @require_login
-async def profile_page(request: Request):
+async def profile_page(request: Request, db: Session = Depends(get_db)):
     """Show user profile page"""
-    user = request.session.get("user")
+    user = get_user_from_session(request, db)
     return templates.TemplateResponse("auth/profile.html", {"request": request, "user": user})
 
 @router.get("/register")
@@ -327,6 +331,19 @@ async def register(request: Request, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.commit()
+    db.refresh(user)
+    
+    # Log the user in immediately after registration
+    request.session["user_id"] = user.id
+    request.session["user"] = {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_admin": False,
+        "picture": get_gravatar_url(user.email),
+        "_permanent": True,
+        "created_at": str(getattr(user, "created_at", ""))
+    }
     
     # Redirect to registration success page
     return RedirectResponse(
@@ -343,7 +360,15 @@ async def registration_success(request: Request):
     )
 
 @router.get("/api/whoami")
-async def whoami(request: Request):
+async def whoami(request: Request, db: Session = Depends(get_db)):
     """API endpoint to get current user information"""
-    user = request.session.get("user")
-    return user or {"error": "Not authenticated"}
+    user = get_user_from_session(request, db)
+    if not user:
+        return {"error": "Not authenticated"}
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_admin": user.is_admin if hasattr(user, "is_admin") else False
+    }
