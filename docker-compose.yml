@@ -13,7 +13,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:/var/lib/mysql:delegated
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
@@ -38,6 +38,11 @@ services:
       DEBUG: "True"
       SESSION_MAX_AGE: "86400"  # 24 hours
       COOKIE_SECURE: "False"    # Set to True in production with HTTPS
+      # Add better error logging
+      PYTHONUNBUFFERED: "1"
+    # Add dependency installation command
+    command: >
+      bash -c "pip install pymysql && uvicorn app.main:app --host 0.0.0.0 --reload"
     ports:
       - "8000:8000"
     volumes:

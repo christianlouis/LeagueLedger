@@ -3,19 +3,27 @@ import os
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "pubquiz_db")
-DB_USER = os.getenv("DB_USER", "pubquiz_user")
-DB_PASS = os.getenv("DB_PASS", "pubquiz_pass")
+# Get database connection details from environment variables with fallbacks
+DB_HOST = os.environ.get("DB_HOST", "localhost")
+DB_PORT = os.environ.get("DB_PORT", "3306")
+DB_NAME = os.environ.get("DB_NAME", "pubquiz_db")
+DB_USER = os.environ.get("DB_USER", "pubquiz_user")
+DB_PASS = os.environ.get("DB_PASS", "pubquiz_pass")
 
-SQLALCHEMY_DATABASE_URL = (
-    f"mysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Create database URL
+SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# Create engine with appropriate parameters
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=3600,
 )
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
+# Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Create base class for models
 Base = declarative_base()
 
 def init_db():
@@ -146,3 +154,12 @@ def migrate_schema():
         print(f"Error during schema migration: {e}")
     finally:
         connection.close()
+
+# Add the missing get_db function
+def get_db():
+    """Database dependency for FastAPI endpoints"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

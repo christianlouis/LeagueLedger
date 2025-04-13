@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .models import User, Team, TeamMembership, QRTicket
 from .db import SessionLocal
+from .auth import get_password_hash
 
 def table_has_column(engine, table_name, column_name):
     """Check if a table has a specific column."""
@@ -28,13 +29,39 @@ def seed_db():
             print("Database already has data. Skipping seeding.")
             return
         
-        # Create users
+        # Create users with properly hashed passwords
         users = [
-            User(username="john_quizmaster", email="john@example.com", hashed_password="password123"),
-            User(username="sarah_johnson", email="sarah@example.com", hashed_password="password123"),
-            User(username="mike_peters", email="mike@example.com", hashed_password="password123"),
-            User(username="emma_wilson", email="emma@example.com", hashed_password="password123"),
-            User(username="robert_brown", email="robert@example.com", hashed_password="password123"),
+            User(
+                username="admin",
+                email="admin@example.com",
+                hashed_password=get_password_hash("password"),
+                is_admin=True  # Set admin privileges
+            ),
+            User(
+                username="john_quizmaster",
+                email="john@example.com",
+                hashed_password=get_password_hash("password123")
+            ),
+            User(
+                username="sarah_johnson",
+                email="sarah@example.com",
+                hashed_password=get_password_hash("password123")
+            ),
+            User(
+                username="mike_peters",
+                email="mike@example.com",
+                hashed_password=get_password_hash("password123")
+            ),
+            User(
+                username="emma_wilson",
+                email="emma@example.com",
+                hashed_password=get_password_hash("password123")
+            ),
+            User(
+                username="robert_brown",
+                email="robert@example.com",
+                hashed_password=get_password_hash("password123")
+            ),
         ]
         db.add_all(users)
         db.commit()
@@ -62,8 +89,8 @@ def seed_db():
         memberships = []
         membership_data = [
             # Quiz Wizards
-            (1, 1, True, 160),
-            (2, 1, False, 155),
+            (1, 1, True, 160),  # Admin user is team admin of Quiz Wizards
+            (2, 1, True, 155),
             (3, 1, False, 130),
             (4, 1, False, 90),
             (5, 1, False, 45),

@@ -18,6 +18,9 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Explicitly install pymysql (in case it's missing from requirements.txt)
+RUN pip install --no-cache-dir pymysql cryptography
+
 # Copy the rest of the code
 COPY . .
 

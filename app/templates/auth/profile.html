@@ -1,184 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="max-w-4xl mx-auto">
-  <div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-    <!-- Profile Header -->
-    <div class="bg-irish-green text-white p-6">
-      <div class="flex flex-col sm:flex-row items-center">
-        <div class="w-24 h-24 rounded-full bg-white border-4 border-white overflow-hidden mb-4 sm:mb-0 sm:mr-6">
-          <img src="https://via.placeholder.com/150" alt="Profile" class="w-full h-full object-cover">
-        </div>
-        <div class="text-center sm:text-left">
-          <h1 class="text-2xl font-bold">{{ user.username }}</h1>
-          <p class="text-green-100">Member since {{ user.created_at.strftime('%B %Y') }}</p>
-          <p class="mt-2">
-            {% if user.is_verified %}
-              <span class="bg-golden-ale text-black-stout text-xs px-2 py-1 rounded-full font-medium mr-1">Verified</span>
-            {% endif %}
-            <span class="bg-white text-irish-green text-xs px-2 py-1 rounded-full font-medium">{{ user.memberships|length }} Teams</span>
-          </p>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Messages/Alerts -->
-    {% if messages %}
-      <div class="p-4">
-        {% for message in messages %}
-          <div class="mb-4 p-3 rounded {% if message.type == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-            {{ message.text }}
+<div class="max-w-3xl mx-auto my-8">
+  <div class="bg-white p-8 rounded-lg shadow-md">
+    <div class="flex flex-col md:flex-row items-center md:items-start md:space-x-8">
+      <!-- Profile Image -->
+      <div class="mb-6 md:mb-0">
+        {% if user.picture %}
+          <img src="{{ user.picture }}" alt="Profile Picture" class="w-32 h-32 rounded-full object-cover border-4 border-irish-green">
+        {% else %}
+          <div class="w-32 h-32 rounded-full bg-irish-green flex items-center justify-center text-white text-4xl">
+            {{ user.username[0]|upper }}
           </div>
-        {% endfor %}
+        {% endif %}
       </div>
-    {% endif %}
-    
-    <!-- Profile Content -->
-    <div class="p-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Left Column: Personal Info -->
-        <div class="md:col-span-1">
-          <h2 class="text-xl font-semibold text-irish-green mb-4">Personal Information</h2>
+      
+      <!-- User Info -->
+      <div class="flex-grow">
+        <h1 class="text-2xl font-bold text-irish-green">{{ user.username }}</h1>
+        <p class="text-gray-600 mb-4">{{ user.email }}</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="bg-cream-white p-4 rounded-md">
+            <h3 class="font-semibold text-irish-green mb-1">Account Type</h3>
+            <p>{% if user.is_admin %}Administrator{% else %}User{% endif %}</p>
+          </div>
           
-          <form action="/auth/update-profile" method="post" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-600">Display Name</label>
-              <div class="mt-1">
-                <input 
-                  type="text" 
-                  name="username" 
-                  value="{{ user.username }}" 
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
-                >
-              </div>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-600">Email</label>
-              <div class="mt-1">
-                <input 
-                  type="email" 
-                  name="email" 
-                  value="{{ user.email }}" 
-                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
-                >
-              </div>
-            </div>
-            
-            <div class="pt-4">
-              <button type="submit" class="w-full bg-irish-green hover:bg-opacity-90 text-white font-medium py-2 px-4 rounded-md transition">
-                Update Profile
-              </button>
-            </div>
-          </form>
-
-          <div class="mt-6 pt-6 border-t">
-            <h3 class="text-lg font-medium text-irish-green mb-3">Change Password</h3>
-            <form action="/auth/change-password" method="post" class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-600">Current Password</label>
-                <div class="mt-1">
-                  <input 
-                    type="password" 
-                    name="current_password" 
-                    required
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
-                  >
-                </div>
-              </div>
-              
-              <div>
-                <label class="block text-sm font-medium text-gray-600">New Password</label>
-                <div class="mt-1">
-                  <input 
-                    type="password" 
-                    name="new_password" 
-                    required
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
-                  >
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-600">Confirm New Password</label>
-                <div class="mt-1">
-                  <input 
-                    type="password" 
-                    name="confirm_password" 
-                    required
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
-                  >
-                </div>
-              </div>
-              
-              <button type="submit" class="w-full bg-golden-ale hover:bg-opacity-90 text-black-stout font-medium py-2 px-4 rounded-md transition">
-                Change Password
-              </button>
-            </form>
+          <div class="bg-cream-white p-4 rounded-md">
+            <h3 class="font-semibold text-irish-green mb-1">Member Since</h3>
+            <p>{{ user.created_at.split(' ')[0] }}</p>
           </div>
         </div>
         
-        <!-- Right Column: Stats & Teams -->
-        <div class="md:col-span-2">
-          <h2 class="text-xl font-semibold text-irish-green mb-4">Your Statistics</h2>
+        <div class="space-y-4">
+          <h2 class="text-xl font-semibold text-irish-green">Account Settings</h2>
           
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-cream-white p-4 rounded-lg text-center">
-              <p class="text-sm text-gray-600">Total Points</p>
-              <p class="text-2xl font-bold text-irish-green">378</p>
-            </div>
-            <div class="bg-cream-white p-4 rounded-lg text-center">
-              <p class="text-sm text-gray-600">QR Codes Redeemed</p>
-              <p class="text-2xl font-bold text-irish-green">24</p>
-            </div>
-            <div class="bg-cream-white p-4 rounded-lg text-center">
-              <p class="text-sm text-gray-600">Teams Joined</p>
-              <p class="text-2xl font-bold text-irish-green">{{ user.memberships|length }}</p>
-            </div>
-            <div class="bg-cream-white p-4 rounded-lg text-center">
-              <p class="text-sm text-gray-600">Best Position</p>
-              <p class="text-2xl font-bold text-irish-green">#2</p>
-            </div>
+          <div class="border-b border-gray-200 pb-4">
+            <h3 class="text-gray-700 font-medium mb-2">Change Password</h3>
+            <p class="text-sm text-gray-600 mb-3">Update your password to keep your account secure.</p>
+            <button class="bg-irish-green text-white py-2 px-4 rounded-md hover:bg-opacity-90 transition" disabled>
+              Change Password
+              <span class="text-xs">(Coming Soon)</span>
+            </button>
           </div>
           
-          <h2 class="text-xl font-semibold text-irish-green mb-4">Your Teams</h2>
-          <div class="space-y-4">
-            {% for team_info in user_teams %}
-              <div class="border rounded-lg overflow-hidden">
-                <div class="bg-cream-white px-4 py-3 flex justify-between items-center">
-                  <div class="font-medium">{{ team_info.team.name }}</div>
-                  {% if team_info.is_admin %}
-                    <span class="bg-golden-ale text-black-stout text-xs px-2 py-1 rounded-full">Captain</span>
-                  {% else %}
-                    <span class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">Member</span>
-                  {% endif %}
-                </div>
-                <div class="px-4 py-3 flex justify-between items-center">
-                  <div>
-                    <p class="text-sm">Current Points: <span class="font-bold">187</span></p>
-                    <p class="text-sm text-gray-600">Current Rank: #4</p>
-                  </div>
-                  <a href="/teams/{{ team_info.team.id }}" class="text-irish-green hover:underline text-sm">View Team</a>
-                </div>
-              </div>
-            {% else %}
-              <div class="text-center p-4 bg-gray-50 rounded-lg">
-                <p class="text-gray-600">You haven't joined any teams yet.</p>
-              </div>
-            {% endfor %}
-            
-            <a href="/teams/" class="block text-center text-irish-green hover:underline text-sm">
-              <i class="fas fa-plus mr-1"></i> Join or Create Another Team
-            </a>
-          </div>
-
-          <!-- Account Management -->
-          <div class="mt-8 pt-6 border-t">
-            <h3 class="text-xl text-red-600 font-semibold mb-4">Danger Zone</h3>
-            <p class="text-gray-700 mb-4">These actions cannot be undone. Please be certain.</p>
-            
-            <a href="/auth/delete-account" class="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md">
+          <div class="pt-4">
+            <h3 class="text-gray-700 font-medium mb-2">Danger Zone</h3>
+            <p class="text-sm text-gray-600 mb-3">Permanently delete your account and all of your data.</p>
+            <button class="border border-red-600 text-red-600 py-2 px-4 rounded-md hover:bg-red-600 hover:text-white transition" disabled>
               Delete Account
-            </a>
+              <span class="text-xs">(Coming Soon)</span>
+            </button>
           </div>
         </div>
       </div>

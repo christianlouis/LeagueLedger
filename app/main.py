@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from datetime import datetime
@@ -8,9 +8,9 @@ import os
 from .db import init_db, engine
 from . import models
 from .templates_config import templates
-from .views import qr, redeem, teams, admin, leaderboard, dashboard, auth
+from .views import qr, redeem, teams, admin, leaderboard, dashboard
 from .db_init import seed_db
-from .dependencies import get_user_from_session
+from .auth import router as auth_router, get_current_user
 
 # Create tables on startup
 init_db()
@@ -21,71 +21,84 @@ seed_db()
 
 app = FastAPI()
 
-# IMPORTANT: Add SessionMiddleware FIRST before any other middleware
-# This ensures session data is available to all other middleware and route handlers
+# Configure session middleware with environment variables or defaults
+secret_key = os.environ.get("SECRET_KEY", "a-default-secret-key-for-sessions-please-change-this")
+if len(secret_key) < 32:
+    print(f"WARNING: Secret key is too short ({len(secret_key)} chars). Recommended: 32+ chars")
+
+# Apply SessionMiddleware FIRST - it must be the first middleware in the stack
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get("SECRET_KEY", "a-default-secret-key-for-sessions"),
-    max_age=int(os.environ.get("SESSION_MAX_AGE", 86400)),  # 24 hours
+    secret_key=secret_key,
+    max_age=int(os.environ.get("SESSION_MAX_AGE", "86400")),  # 24 hours by default
     same_site="lax",  # Important for security while allowing redirects
     https_only=os.environ.get("COOKIE_SECURE", "False").lower() == "true",
-    session_cookie="league_ledger_session",  # Custom cookie name for clarity
+    session_cookie="league_ledger_session",  # Custom cookie name
 )
 
-# Add debugging middleware to help track sessions
+# Debug middleware to track session state
 @app.middleware("http")
 async def debug_session_middleware(request, call_next):
     """Debug middleware to track session state"""
-    session_cookie = request.cookies.get("league_ledger_session")
-    
-    print(f"Request path: {request.url.path}")
-    print(f"Has session attribute: {'session' in request.scope}")
-    print(f"Has session cookie: {session_cookie is not None}")
-    
-    if "session" in request.scope:
-        print(f"Session data before: {dict(request.session)}")
+    try:
+        session_cookie = request.cookies.get("league_ledger_session")
+        
+        print(f"Request path: {request.url.path}")
+        # Instead of checking request.scope, check if we can access the session dict
+        has_session = hasattr(request, "session") and isinstance(request.session, dict)
+        print(f"Has session attribute: {has_session}")
+        print(f"Has session cookie: {session_cookie is not None}")
+        
+        # Check session data
+        if hasattr(request, "session"):
+            try:
+                print(f"Session data before: {dict(request.session)}")
+            except (TypeError, AttributeError):
+                # The session might not be dict-like
+                print(f"Session exists but isn't a dictionary")
+    except Exception as e:
+        print(f"Error in debug middleware (pre): {str(e)}")
     
     response = await call_next(request)
     
-    if "session" in request.scope:
-        print(f"Session data after: {dict(request.session)}")
+    try:
+        if hasattr(request, "session"):
+            try:
+                print(f"Session data after: {dict(request.session)}")
+            except (TypeError, AttributeError):
+                print(f"Session exists but isn't a dictionary")
+    except Exception as e:
+        print(f"Error in debug middleware (post): {str(e)}")
     
     return response
 
-# Update the template globals at app startup to access the request
+# User context middleware to make user available in templates
 @app.middleware("http")
 async def add_user_to_request(request: Request, call_next):
-    # Print debugging information
-    print(f"Processing request to: {request.url.path}")
-    
-    # Add user to request state so templates can access it
+    """Add user to request state and update template globals"""
     try:
-        if "session" in request.scope:
-            print("Session found in request scope")
-            if "user_id" in request.session:
-                print(f"User ID in session: {request.session['user_id']}")
-                # Get user from session
-                user = await get_user_from_session(request)
-                request.state.user = user
-            else:
-                print("No user_id in session")
-                request.state.user = None
-        else:
-            print("No session in request scope")
-            request.state.user = None
+        # Get user from session if available
+        user = get_current_user(request)
+        
+        # Store user in request.state for route handlers
+        request.state.user = user
+        
+        # Update template globals for all templates
+        templates.env.globals["current_user"] = user
+        
+        # Debug output to check user and admin status
+        if user:
+            print(f"User in context: {user.get('username')}, Admin: {user.get('is_admin', False)}")
+            
     except Exception as e:
-        print(f"Error in middleware: {e}")
-        request.state.user = None
-    
-    # Update template context with current user before processing the request
-    templates.env.globals["current_user"] = request.state.user
+        print(f"Error setting user context: {str(e)}")
     
     # Process the request
     response = await call_next(request)
     return response
 
 # Routers
-app.include_router(auth.router, prefix="/auth", tags=["Auth"])  # Auth router should be first
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])  # Auth router should be first
 app.include_router(qr.router, prefix="/qr", tags=["QR"])
 app.include_router(redeem.router, prefix="/redeem", tags=["Redeem"])
 app.include_router(teams.router, prefix="/teams", tags=["Teams"])
@@ -97,34 +110,29 @@ app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 def index(request: Request):
     return templates.TemplateResponse("index.html", {
         "request": request, 
-        "now": datetime.now,
-        "current_user": getattr(request.state, "user", None)
+        "now": datetime.now
     })
 
 @app.get("/about", response_class=HTMLResponse)
 def about(request: Request):
     return templates.TemplateResponse("about.html", {
-        "request": request,
-        "current_user": getattr(request.state, "user", None)
+        "request": request
     })
 
 @app.get("/contact", response_class=HTMLResponse)
 def contact(request: Request):
     return templates.TemplateResponse("contact.html", {
-        "request": request,
-        "current_user": getattr(request.state, "user", None)
+        "request": request
     })
 
 @app.get("/privacy", response_class=HTMLResponse)
 def privacy(request: Request):
     return templates.TemplateResponse("privacy.html", {
-        "request": request,
-        "current_user": getattr(request.state, "user", None)
+        "request": request
     })
 
 @app.get("/terms", response_class=HTMLResponse)
 def terms(request: Request):
     return templates.TemplateResponse("terms.html", {
-        "request": request,
-        "current_user": getattr(request.state, "user", None)
+        "request": request
     })

@@ -20,3 +20,4 @@ templates = MyJinjaTemplates(directory=str(BASE_DIR / "templates"))
 
 # Register a context processor to add current_user to all templates
 templates.env.globals["get_current_user"] = lambda: None  # Will be overridden at runtime
+templates.env.globals["current_user"] = None
