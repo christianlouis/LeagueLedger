@@ -67,7 +67,7 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/leageledgerp:latest
+            ghcr.io/${{ github.repository_owner }}/leagueledger:latest
             ghcr.io/${{ github.repository_owner }}/leagueledger:${{ github.sha }}
             ${{ startsWith(github.ref, 'refs/tags/') && format('{0}:{1}', env.IMAGE_NAME, env.VERSION) || '' }}
             ${{ startsWith(github.ref, 'refs/tags/') && format('ghcr.io/{0}/leagueledger:{1}', github.repository_owner, env.VERSION) || '' }}
