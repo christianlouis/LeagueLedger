@@ -1,22 +1,29 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="flex flex-col items-center justify-center min-h-[60vh] px-4 py-12">
-  <div class="text-center">
-    <div class="mb-6">
-      <svg class="mx-auto h-16 w-16 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
+<div class="max-w-md mx-auto my-12">
+  <div class="bg-white p-8 rounded-lg shadow-md text-center">
+    <div class="text-red-500 text-5xl mb-6">
+      <i class="fas fa-exclamation-circle"></i>
     </div>
-    <h1 class="text-3xl font-bold text-gray-900 mb-2">Oops! Something went wrong</h1>
-    <p class="text-gray-600 mb-6">{{ error }}</p>
-    <div class="flex justify-center">
-      <a href="/" class="bg-irish-green hover:bg-opacity-90 text-white font-bold py-2 px-6 rounded-md mr-4">
-        Go Home
+    <h1 class="text-2xl font-bold mb-4">{{ error|default("An error occurred", true) }}</h1>
+    
+    {% if details %}
+    <p class="text-gray-600 mb-6">{{ details }}</p>
+    {% endif %}
+    
+    <div class="mt-8">
+      <a href="/" class="inline-block bg-irish-green text-white py-2 px-6 rounded-md hover:bg-opacity-90 transition">
+        Return to Home
       </a>
-      <button onclick="window.history.back()" class="border border-irish-green text-irish-green hover:bg-gray-100 font-bold py-2 px-6 rounded-md">
-        Go Back
-      </button>
     </div>
+    
+    {% if debug_info %}
+    <div class="mt-8 p-4 bg-gray-100 rounded text-left">
+      <h3 class="font-semibold mb-2">Debug Information:</h3>
+      <pre class="text-xs overflow-auto">{{ debug_info }}</pre>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

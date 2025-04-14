@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password Reset - LeagueLedger</title>
+    <title>Team Join Request Response - LeagueLedger</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -45,24 +45,23 @@
 </head>
 <body>
     <div class="header">
-        <h1>Password Reset</h1>
+        <h1>Team Join Request {{ "Approved" if is_approved else "Denied" }}</h1>
     </div>
     
     <div class="content">
         <p>Hello {{ username }},</p>
         
-        <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
+        {% if is_approved %}
+        <p>Good news! Your request to join <strong>{{ team_name }}</strong> has been approved. You are now a member of the team.</p>
+        {% else %}
+        <p>We regret to inform you that your request to join <strong>{{ team_name }}</strong> has been denied.</p>
+        {% endif %}
         
-        <p>To reset your password, click the button below:</p>
+        <p>You can view your teams by visiting your dashboard:</p>
         
-        <div style="margin: 30px 0; text-align: center;">
-            <a href="{{ reset_url }}" class="button">Reset Password</a>
-        </div>
-        
-        <p>Or you can copy and paste this link into your browser:</p>
-        <p>{{ reset_url }}</p>
-        
-        <p>This link will expire in 24 hours.</p>
+        <p style="text-align: center;">
+            <a href="{{ base_url }}/dashboard" class="button">Go to Dashboard</a>
+        </p>
         
         <p>Best regards,<br>The LeagueLedger Team</p>
     </div>

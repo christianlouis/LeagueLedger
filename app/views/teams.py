@@ -2,17 +2,22 @@
 """
 Teams management for users and admins.
 """
-from fastapi import APIRouter, Depends, Request, Form, HTTPException
+from fastapi import APIRouter, Depends, Request, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, inspect
+from sqlalchemy import func, desc, inspect, or_, and_
 from datetime import datetime, timedelta
 import random  # For demo data
+import secrets
+from starlette.status import HTTP_303_SEE_OTHER
+from starlette.middleware.sessions import SessionMiddleware
 
-from ..db import SessionLocal
-from ..models import Team, TeamMembership, User, QRCode, TeamAchievement, TeamMember
+from ..db import SessionLocal, get_db
+from ..models import Team, TeamMembership, User, QRCode, TeamAchievement, TeamMember, TeamJoinRequest
 from ..schemas import TeamCreate
 from ..templates_config import templates
+from ..utils.auth import get_current_user, is_team_captain
+from ..utils.mail import send_team_join_request_notification, send_join_request_response
 
 router = APIRouter()
 
@@ -60,60 +65,260 @@ def list_teams(request: Request, db: Session = Depends(get_db)):
         }
     )
 
-@router.post("/create")
-def create_team(request: Request, name: str = Form(...), db: Session = Depends(get_db)):
-    # Check if user is logged in
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse("/auth/login?next=/teams", status_code=303)
-    
-    # Get the user
-    user = db.query(User).get(user_id)
-    if not user:
-        return RedirectResponse("/auth/login", status_code=303)
+@router.post("/create", response_class=HTMLResponse)
+async def create_team_post(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(""),
+    logo_url: str = Form(""),
+    is_open: bool = Form(False),  # Added is_open field
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Handle team creation form submission"""
+    if not current_user:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
     
     # Check if team name already exists
     existing_team = db.query(Team).filter(Team.name == name).first()
     if existing_team:
-        # Return to teams page with error message
-        # In a real app, you'd add error handling/flash messages
-        return RedirectResponse("/teams/?error=Team+name+already+exists", status_code=303)
+        return RedirectResponse("/teams/?error=Team+name+already+exists", status_code=HTTP_303_SEE_OTHER)
     
-    # Create team with the user as owner
-    new_team = Team(name=name, owner_id=user_id)
-    db.add(new_team)
+    # Create team
+    team = Team(
+        name=name,
+        description=description,
+        logo_url=logo_url,
+        is_open=is_open  # Save is_open value
+    )
+    db.add(team)
     db.commit()
-    db.refresh(new_team)
+    db.refresh(team)
     
     # Make the user an admin of the team in TeamMembership
     team_membership = TeamMembership(
-        user_id=user_id,
-        team_id=new_team.id,
+        user_id=current_user.id,
+        team_id=team.id,
         is_admin=True  # User becomes admin of the team
     )
     db.add(team_membership)
     
-    # Check if TeamMember model exists in the database
-    try:
-        # Use a safer approach to check if the model exists and is usable
-        if 'team_members' in inspect(db.bind).get_table_names():
-            # Create TeamMember relationship as well
-            team_member = TeamMember(
-                user_id=user_id,
-                team_id=new_team.id,
-                is_captain=True  # User becomes captain in TeamMember model
-            )
-            db.add(team_member)
-    except Exception as e:
-        print(f"Could not create TeamMember record: {str(e)}")
-        # Continue even if this fails - TeamMembership is primary relationship
+    # Create TeamMember relationship as well
+    team_member = TeamMember(
+        user_id=current_user.id,
+        team_id=team.id,
+        is_captain=True  # Use is_captain instead of role
+    )
+    db.add(team_member)
     
     db.commit()
 
-    return RedirectResponse("/teams/", status_code=303)
+    return RedirectResponse("/teams/", status_code=HTTP_303_SEE_OTHER)
+
+@router.post("/teams/{team_id}/edit", response_class=HTMLResponse)
+async def edit_team_post(
+    request: Request,
+    team_id: int,
+    name: str = Form(...),
+    description: str = Form(""),
+    logo_url: str = Form(""),
+    is_open: bool = Form(False),  # Added is_open field
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Handle team edit form submission"""
+    if not current_user:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    # Check if user is admin
+    membership = db.query(TeamMembership).filter_by(
+        team_id=team.id,
+        is_admin=True
+    ).first()
+    
+    if not membership:
+        raise HTTPException(status_code=403, detail="You don't have permission to update this team")
+    
+    # Update team details
+    team.name = name
+    team.description = description
+    team.logo_url = logo_url
+    team.is_open = is_open  # Update is_open value
+    db.commit()
+    
+    return RedirectResponse(f"/teams/{team_id}", status_code=HTTP_303_SEE_OTHER)
+
+@router.get("/{team_id}/join", response_class=HTMLResponse)
+async def join_team_page(
+    request: Request,
+    team_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Page for joining a team"""
+    if not current_user:
+        return RedirectResponse(f"/auth/login?next=/teams/{team_id}/join", status_code=HTTP_303_SEE_OTHER)
+    
+    # Check if team exists
+    team = db.query(Team).filter(Team.id == team_id, Team.is_active == True).first()
+    if not team:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": "Team not found"}
+        )
+    
+    # Check if user is already a member
+    existing_membership = db.query(TeamMember).filter(
+        TeamMember.team_id == team_id, 
+        TeamMember.user_id == current_user.id
+    ).first()
+    
+    if existing_membership:
+        return templates.TemplateResponse(
+            "teams/join_team.html",
+            {
+                "request": request, 
+                "team": team, 
+                "error": "You are already a member of this team"
+            }
+        )
+    
+    # Check if there's a pending join request
+    pending_request = db.query(TeamJoinRequest).filter(
+        TeamJoinRequest.team_id == team_id,
+        TeamJoinRequest.user_id == current_user.id,
+        TeamJoinRequest.status == "pending"
+    ).first()
+    
+    if pending_request:
+        return templates.TemplateResponse(
+            "teams/join_team.html",
+            {
+                "request": request, 
+                "team": team, 
+                "error": "You already have a pending join request for this team"
+            }
+        )
+    
+    return templates.TemplateResponse(
+        "teams/join_team.html",
+        {"request": request, "team": team, "is_open": team.is_open}
+    )
+
+@router.post("/{team_id}/join", response_class=HTMLResponse)
+async def join_team_request(
+    request: Request,
+    team_id: int,
+    background_tasks: BackgroundTasks,
+    message: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Process join team request"""
+    if not current_user:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Check if team exists
+    team = db.query(Team).filter(Team.id == team_id, Team.is_active == True).first()
+    if not team:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": "Team not found"}
+        )
+    
+    # Check if user is already a member
+    existing_membership = db.query(TeamMember).filter(
+        TeamMember.team_id == team_id, 
+        TeamMember.user_id == current_user.id
+    ).first()
+    
+    if existing_membership:
+        return RedirectResponse(f"/teams/{team_id}", status_code=HTTP_303_SEE_OTHER)
+    
+    # Open team - directly add the user
+    if team.is_open:
+        # Add user to team
+        new_member = TeamMember(
+            team_id=team_id,
+            user_id=current_user.id,
+            is_captain=False  # Use is_captain instead of role
+        )
+        
+        db.add(new_member)
+        db.commit()
+        
+        return RedirectResponse(
+            f"/teams/{team_id}?message=You+have+joined+the+team+successfully", 
+            status_code=HTTP_303_SEE_OTHER
+        )
+    
+    # Closed team - create join request
+    # Check for existing pending request
+    existing_request = db.query(TeamJoinRequest).filter(
+        TeamJoinRequest.team_id == team_id,
+        TeamJoinRequest.user_id == current_user.id,
+        TeamJoinRequest.status == "pending"
+    ).first()
+    
+    if existing_request:
+        return RedirectResponse(
+            f"/teams/{team_id}?message=Your+join+request+is+pending+approval", 
+            status_code=HTTP_303_SEE_OTHER
+        )
+    
+    # Create request token
+    request_token = secrets.token_urlsafe(32)
+    
+    # Create join request
+    join_request = TeamJoinRequest(
+        team_id=team_id,
+        user_id=current_user.id,
+        message=message,
+        request_token=request_token
+    )
+    
+    db.add(join_request)
+    db.commit()
+    
+    # Get team captains to notify
+    captains = db.query(User).join(TeamMember).filter(
+        TeamMember.team_id == team_id,
+        TeamMember.is_captain == True  # Use is_captain instead of role
+    ).all()
+    
+    if not captains:
+        print("No captains found for the team. Unable to send notifications.")
+    else:
+        # Send email notifications to all captains
+        for captain in captains:
+            try:
+                await send_team_join_request_notification(
+                    captain_email=captain.email,
+                    captain_name=captain.username,
+                    requester_name=current_user.username,
+                    team_name=team.name,
+                    message=message,
+                    approval_token=request_token,
+                    background_tasks=background_tasks
+                )
+                # Log success
+                print(f"Team join request notification sent to {captain.email}")
+            except Exception as e:
+                # Log the error but continue
+                print(f"Failed to send notification to {captain.email}: {str(e)}")
+    
+    return RedirectResponse(
+        f"/teams/{team_id}?message=Your+join+request+has+been+submitted+for+approval", 
+        status_code=HTTP_303_SEE_OTHER
+    )
 
 @router.post("/join/{team_id}")
-def join_team(request: Request, team_id: int, db: Session = Depends(get_db)):
+def direct_join_team(request: Request, team_id: int, db: Session = Depends(get_db)):
+    """Handle direct team join requests"""
     # Check if user is logged in
     user_id = request.session.get("user_id")
     if not user_id:
@@ -136,14 +341,27 @@ def join_team(request: Request, team_id: int, db: Session = Depends(get_db)):
         
     if existing:
         return RedirectResponse("/teams/?error=You+are+already+a+member+of+this+team", status_code=303)
+    
+    # Check if team is closed (not open)
+    if not team.is_open:
+        # For closed teams, redirect to the join request page
+        return RedirectResponse(f"/teams/{team_id}/join", status_code=303)
 
-    # Create membership
+    # Create membership for open teams
     new_member = TeamMembership(
         user_id=user_id,
         team_id=team.id,
         is_admin=False
     )
     db.add(new_member)
+    
+    # Also create TeamMember record for consistency
+    team_member = TeamMember(
+        user_id=user_id,
+        team_id=team.id,
+        is_captain=False  # Use is_captain instead of role
+    )
+    db.add(team_member)
     db.commit()
     
     # Redirect to the team detail page
@@ -347,6 +565,7 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
     
     # Safely get team attributes
     is_public = getattr(team, 'is_public', False)
+    is_open = getattr(team, 'is_open', False)  # Add this line to get is_open status
     created_at = getattr(team, 'created_at', None)
     
     # Calculate days since team was founded
@@ -382,6 +601,7 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
             "is_team_member": is_team_member,
             "days_ago": days_ago,
             "founded_date": founded_date_str,
-            "user": user  # Add user to the context
+            "user": user,  # Add user to the context
+            "is_open": is_open  # Pass is_open to the template
         }
     )

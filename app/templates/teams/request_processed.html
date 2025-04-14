@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Request Processed{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Team Join Request Processed</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        {{ message }}
+                    </div>
+                    <div class="text-center mt-4">
+                        <a href="/teams/{{ team_id }}" class="btn btn-primary">Go to Team Page</a>
+                        <a href="/teams" class="btn btn-outline-secondary">Back to Teams List</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

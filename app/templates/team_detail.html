@@ -21,11 +21,23 @@
               Login to Join
             </a>
           {% elif not is_team_member %}
-            <form action="/teams/join/{{ team.id }}" method="post" class="inline">
-              <button type="submit" class="bg-white text-irish-green font-medium py-2 px-4 rounded-md hover:bg-opacity-90">
-                Join Team
-              </button>
-            </form>
+            <div class="my-4 p-4 bg-gray-100 rounded">
+              <h3 class="text-xl font-semibold mb-2">Join This Team</h3>
+              
+              {% if is_open %}
+                <p class="mb-3">This is an open team. You can join immediately.</p>
+                <form action="/teams/join/{{ team.id }}" method="post">
+                  <button type="submit" class="bg-irish-green text-white py-2 px-6 rounded-md hover:bg-opacity-90 transition">
+                    Join Team
+                  </button>
+                </form>
+              {% else %}
+                <p class="mb-3">This is a closed team. You need to request to join and be approved by a team captain.</p>
+                <a href="/teams/{{ team.id }}/join" class="inline-block bg-irish-green text-white py-2 px-6 rounded-md hover:bg-opacity-90 transition">
+                  Request to Join
+                </a>
+              {% endif %}
+            </div>
           {% else %}
             <button class="bg-white text-irish-green font-medium py-2 px-4 rounded-md hover:bg-opacity-90">
               <i class="fas fa-share-alt mr-1"></i> Share Team

@@ -1,0 +1,18 @@
+<!-- Add this to the form, right before the submit button -->
+<div class="mb-6">
+  <div class="flex items-center">
+    <input 
+      type="checkbox" 
+      id="is_open" 
+      name="is_open" 
+      {% if team.is_open %}checked{% endif %}
+      class="h-4 w-4 text-irish-green focus:ring-irish-green border-gray-300 rounded"
+    >
+    <label for="is_open" class="ml-2 block text-gray-700">
+      Open Team (anyone can join without approval)
+    </label>
+  </div>
+  <p class="mt-1 text-sm text-gray-500">
+    If unchecked, users will need to request to join and be approved by a captain.
+  </p>
+</div>

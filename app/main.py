@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, Depends, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import os
 from starlette.middleware.sessions import SessionMiddleware
@@ -13,7 +14,7 @@ import contextlib
 from .db import init_db, engine, get_db
 from . import models
 from .templates_config import templates
-from .views import qr, redeem, teams, admin, leaderboard, dashboard, static, pages, auth
+from .views import qr, redeem, teams, admin, leaderboard, dashboard, static, pages, auth, convenience
 from .db_init import seed_db
 from .db_migrations import apply_migrations
 
@@ -27,9 +28,18 @@ load_dotenv()
 # Create the FastAPI application
 app = FastAPI(title="LeagueLedger")
 
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Add SessionMiddleware with a secure secret key
-# Must be added first before other middleware to ensure it's available
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", "your-very-secret-session-key"))
+SECRET_KEY = os.getenv("SECRET_KEY", "a-very-secure-secret-key-for-development")
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 # Initialize database on startup
 @app.on_event("startup")
@@ -69,68 +79,58 @@ templates = Jinja2Templates(directory="app/templates")
 # User context middleware
 @app.middleware("http")
 async def add_template_globals(request: Request, call_next):
-    """Add template globals"""
+    """Add global variables to all templates."""
     try:
-        # Update template globals for all templates
-        user = None
-        if hasattr(request, "session") and "user_id" in request.session and request.session.get("is_authenticated"):
-            # Mock user object - in a real app, you'd fetch this from the database
-            user = {
-                "id": request.session["user_id"],
-                "username": request.session.get("username", "User"),
-                "is_admin": request.session.get("is_admin", False)
-            }
-        templates.env.globals["current_user"] = user
+        # Set user in request state for templates
+        if hasattr(request, "session"):
+            user_id = request.session.get("user_id")
+            if user_id:
+                # Get a database session
+                from sqlalchemy.orm import Session
+                from .db import SessionLocal
+                from .models import User
+                
+                db = SessionLocal()
+                try:
+                    # Fetch actual user from database
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user:
+                        request.state.user = user
+                    else:
+                        request.state.user = None
+                finally:
+                    db.close()
+            else:
+                request.state.user = None
+        else:
+            request.state.user = None
     except Exception as e:
+        # Log error but continue processing
         logger.error(f"Error setting template globals: {str(e)}")
-    
-    # Process the request
+        request.state.user = None
+        
+    # Continue with request
     response = await call_next(request)
     return response
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    user = None
-    if "user_id" in request.session and request.session.get("is_authenticated"):
-        user = {
-            "id": request.session["user_id"],
-            "username": request.session.get("username", "User"),
-            "is_admin": request.session.get("is_admin", False)
-        }
+# Handle exceptions
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc):
+    """Handle 404 errors with a custom template."""
     return templates.TemplateResponse(
-        "index.html", 
-        {"request": request, "user": user}
+        "error.html",
+        {"request": request, "error": "Page not found"},
+        status_code=404
     )
 
 # Routers
 app.include_router(pages.router, tags=["Pages"])  # Pages router for index and static pages
-app.include_router(auth.router)  # Include the auth router
+app.include_router(auth.router, prefix="/auth", tags=["auth"])  # Include the auth router
 app.include_router(qr.router, prefix="/qr", tags=["QR"])
 app.include_router(redeem.router, prefix="/redeem", tags=["Redeem"])
-app.include_router(teams.router, prefix="/teams", tags=["Teams"])
+app.include_router(teams.router, prefix="/teams", tags=["teams"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
-app.include_router(leaderboard.router, prefix="/leaderboard", tags=["Leaderboard"])
+app.include_router(leaderboard.router, prefix="/leaderboard", tags=["leaderboard"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(static.router, tags=["Static"])  # Include the static router
-
-# Add a direct route for /scan that redirects to /dashboard/scan
-@app.get("/scan")
-async def scan_redirect():
-    return RedirectResponse("/dashboard/scan", status_code=303)
-
-# Add convenience routes for auth paths
-@app.get("/login")
-async def login_redirect():
-    return RedirectResponse("/auth/login", status_code=303)
-
-@app.get("/register")
-async def register_redirect():
-    return RedirectResponse("/auth/register", status_code=303)
-
-@app.get("/profile")
-async def profile_redirect():
-    return RedirectResponse("/auth/profile", status_code=303)
-
-@app.get("/logout")
-async def logout_redirect():
-    return RedirectResponse("/auth/logout", status_code=303)
+app.include_router(convenience.router, tags=["Convenience"])  # Include convenience routes

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
 
 # This Base should be the single source of truth
 Base = declarative_base()
@@ -33,7 +34,6 @@ class User(Base):
 
     # Relationships
     memberships = relationship("TeamMembership", back_populates="user")
-    teams = relationship("TeamMember", back_populates="user")
     points = relationship("UserPoints", back_populates="user")
     events_attended = relationship("EventAttendee", back_populates="user")
     owned_teams = relationship("Team", back_populates="owner")
@@ -61,40 +61,50 @@ class Team(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text, nullable=True)
+    logo_url = Column(String(255), nullable=True)  # Add logo URL field
     is_public = Column(Boolean, default=False)  # For team privacy setting
-    created_at = Column(DateTime, server_default=func.now())  # For team founded date
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    is_open = Column(Boolean, default=False)  # Whether anyone can join without approval
+    is_active = Column(Boolean, default=True)  # Add this column to fix the error
+    created_at = Column(DateTime, default=datetime.utcnow)  # For team founded date
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
-    memberships = relationship("TeamMembership", back_populates="team")
-    members = relationship("TeamMember", back_populates="team")
+    members = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
     owner = relationship("User", back_populates="owned_teams")
+
+
+class TeamJoinRequest(Base):
+    __tablename__ = "team_join_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    message = Column(String(500), nullable=True)  # Specified length for VARCHAR
+    status = Column(String(20), default="pending")  # pending, approved, denied
+    request_token = Column(String(100), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    team = relationship("Team")
+    user = relationship("User")
+
+    __table_args__ = (UniqueConstraint('team_id', 'user_id', 'status', name='_team_user_request_status_uc'),)
 
 
 class TeamMembership(Base):
     __tablename__ = "team_membership"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    team_id = Column(Integer, ForeignKey("teams.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
     is_admin = Column(Boolean, default=False)
+    is_captain = Column(Boolean, default=False)  # Added captain status
     joined_at = Column(DateTime, server_default=func.now())
 
     user = relationship("User", back_populates="memberships")
-    team = relationship("Team", back_populates="memberships")
-
-
-class TeamMember(Base):
-    __tablename__ = "team_members"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    is_captain = Column(Boolean, default=False)
-    joined_at = Column(DateTime, server_default=func.now())
-    
-    # Relationships
-    user = relationship("User", back_populates="teams")
     team = relationship("Team", back_populates="members")
+
+    __table_args__ = (UniqueConstraint('user_id', 'team_id', name='_user_team_uc'),)
 
 
 class QRSet(Base):

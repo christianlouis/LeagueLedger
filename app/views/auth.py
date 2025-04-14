@@ -17,15 +17,25 @@ from ..templates_config import templates
 from ..security import verify_password, get_password_hash
 from ..utils.mail import send_password_reset_email
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(tags=["Auth"])
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, error: Optional[str] = None, message: Optional[str] = None):
+async def login_page(request: Request, error: Optional[str] = None, message: Optional[str] = None, db: Session = Depends(get_db)):
     """Login page route"""
+    # Check if user is already logged in
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+        # If user is already logged in, show a message
+        if not message:
+            message = "You are already logged in."
+    
     return templates.TemplateResponse(
         "auth/login.html", 
         {"request": request, "error": error, "message": message, 
-         "show_oauth": True, "oauth_provider_name": "Authentik"}
+         "show_oauth": True, "oauth_provider_name": "Authentik",
+         "user": user}  # Add user to context
     )
 
 @router.post("/login", response_class=HTMLResponse)
@@ -100,11 +110,20 @@ async def login_post(
     return RedirectResponse(next_page, status_code=HTTP_303_SEE_OTHER)
 
 @router.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request, error: Optional[str] = None):
+async def register_page(request: Request, error: Optional[str] = None, db: Session = Depends(get_db)):
     """Registration page route"""
+    # Check if user is already logged in
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+        # If no specific error is set, inform user they're already registered
+        if not error:
+            error = "You are already registered and logged in. You can logout first if you want to create a new account."
+    
     return templates.TemplateResponse(
         "auth/register.html", 
-        {"request": request, "error": error}
+        {"request": request, "error": error, "user": user}  # Add user to context
     )
 
 @router.post("/register", response_class=HTMLResponse)

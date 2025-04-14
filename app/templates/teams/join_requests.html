@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto my-8">
+  <div class="bg-white p-8 rounded-lg shadow-md">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Join Requests - {{ team.name }}</h1>
+      <a href="/teams/{{ team.id }}" class="text-irish-green hover:underline">Back to Team</a>
+    </div>
+    
+    {% if request.query_params.get('message') %}
+      <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
+        <p>{{ request.query_params.get('message') }}</p>
+      </div>
+    {% endif %}
+    
+    {% if requests|length > 0 %}
+      <div class="bg-blue-50 p-4 rounded-md mb-6">
+        <p class="text-blue-800">
+          <i class="fas fa-info-circle mr-2"></i>
+          You have {{ requests|length }} pending join request{% if requests|length > 1 %}s{% endif %}.
+        </p>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200">
+          <thead>
+            <tr>
+              <th class="py-3 px-4 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">User</th>
+              <th class="py-3 px-4 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Date</th>
+              <th class="py-3 px-4 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Message</th>
+              <th class="py-3 px-4 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            {% for item in requests %}
+              <tr>
+                <td class="py-4 px-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    {% if item.user.picture %}
+                      <img src="{{ item.user.picture }}" alt="{{ item.user.username }}" class="w-8 h-8 rounded-full mr-3">
+                    {% else %}
+                      <div class="w-8 h-8 rounded-full bg-irish-green flex items-center justify-center text-white mr-3">
+                        <span>{{ item.user.username[0]|upper }}</span>
+                      </div>
+                    {% endif %}
+                    <div>
+                      <div class="text-sm font-medium text-gray-900">{{ item.user.username }}</div>
+                      <div class="text-sm text-gray-500">{{ item.user.email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-4 px-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ item.request.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </td>
+                <td class="py-4 px-4 text-sm text-gray-500 max-w-xs truncate">
+                  {% if item.request.message %}
+                    {{ item.request.message }}
+                  {% else %}
+                    <span class="text-gray-400 italic">No message</span>
+                  {% endif %}
+                </td>
+                <td class="py-4 px-4 whitespace-nowrap text-sm font-medium">
+                  <form action="/teams/{{ team.id }}/requests/{{ item.request.id }}" method="post" class="inline-block">
+                    <input type="hidden" name="decision" value="approve">
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded mr-2">
+                      Approve
+                    </button>
+                  </form>
+                  <form action="/teams/{{ team.id }}/requests/{{ item.request.id }}" method="post" class="inline-block">
+                    <input type="hidden" name="decision" value="deny">
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded">
+                      Deny
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-center py-12">
+        <i class="fas fa-inbox text-gray-300 text-5xl mb-4"></i>
+        <p class="text-xl text-gray-500">No pending join requests</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

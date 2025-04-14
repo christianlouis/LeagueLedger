@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password Reset - LeagueLedger</title>
+    <title>Team Join Request - LeagueLedger</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -35,6 +35,13 @@
             border-radius: 5px;
             margin: 20px 0;
         }
+        .button.approve {
+            background-color: #4CAF50;
+        }
+        .button.deny {
+            background-color: #f44336;
+            margin-left: 10px;
+        }
         .footer {
             margin-top: 20px;
             font-size: 12px;
@@ -45,24 +52,28 @@
 </head>
 <body>
     <div class="header">
-        <h1>Password Reset</h1>
+        <h1>Team Join Request</h1>
     </div>
     
     <div class="content">
-        <p>Hello {{ username }},</p>
+        <p>Hello {{ captain_name }},</p>
         
-        <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
+        <p><strong>{{ requester_name }}</strong> has requested to join your team <strong>{{ team_name }}</strong>.</p>
         
-        <p>To reset your password, click the button below:</p>
+        {% if message %}
+        <p>Message from {{ requester_name }}:<br><em>"{{ message }}"</em></p>
+        {% endif %}
+        
+        <p>You can approve or deny this request by clicking one of the buttons below:</p>
         
         <div style="margin: 30px 0; text-align: center;">
-            <a href="{{ reset_url }}" class="button">Reset Password</a>
+            <a href="{{ approve_url }}" class="button approve">Approve Request</a>
+            <a href="{{ deny_url }}" class="button deny">Deny Request</a>
         </div>
         
-        <p>Or you can copy and paste this link into your browser:</p>
-        <p>{{ reset_url }}</p>
-        
-        <p>This link will expire in 24 hours.</p>
+        <p>Or you can copy and paste one of these links into your browser:</p>
+        <p>Approve: {{ approve_url }}</p>
+        <p>Deny: {{ deny_url }}</p>
         
         <p>Best regards,<br>The LeagueLedger Team</p>
     </div>
