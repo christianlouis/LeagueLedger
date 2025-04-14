@@ -97,24 +97,37 @@ def migrate_schema():
                     "ALTER TABLE team_membership ADD COLUMN joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                 ))
         
-        # Check QRTicket table
-        if 'qr_tickets' in inspector.get_table_names():
-            columns = [col['name'] for col in inspector.get_columns('qr_tickets')]
+        # Check QRCode table (formerly QRTicket)
+        if 'qr_codes' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('qr_codes')]
             if 'created_at' not in columns:
-                print("Adding created_at column to qr_tickets table")
+                print("Adding created_at column to qr_codes table")
                 connection.execute(text(
-                    "ALTER TABLE qr_tickets ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    "ALTER TABLE qr_codes ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                 ))
             if 'redeemed_at' not in columns:
-                print("Adding redeemed_at column to qr_tickets table")
+                print("Adding redeemed_at column to qr_codes table")
                 connection.execute(text(
-                    "ALTER TABLE qr_tickets ADD COLUMN redeemed_at TIMESTAMP NULL"
+                    "ALTER TABLE qr_codes ADD COLUMN redeemed_at TIMESTAMP NULL"
                 ))
-            if 'event_name' not in columns:
-                print("Adding event_name column to qr_tickets table")
-                connection.execute(text(
-                    "ALTER TABLE qr_tickets ADD COLUMN event_name VARCHAR(255)"
-                ))
+        
+        # Handle legacy QRTicket table migration if it exists
+        if 'qr_tickets' in inspector.get_table_names() and 'qr_codes' in inspector.get_table_names():
+            print("Migrating data from legacy qr_tickets table to qr_codes table")
+            try:
+                # Check if migration has already been done
+                ticket_count = connection.execute(text("SELECT COUNT(*) FROM qr_tickets")).scalar()
+                if ticket_count > 0:
+                    # Migrate data from qr_tickets to qr_codes
+                    connection.execute(text("""
+                        INSERT INTO qr_codes (code, points, redeemed_by, redeemed_at_team, used, redeemed_at)
+                        SELECT code, points, redeemed_by, redeemed_at_team, used, redeemed_at 
+                        FROM qr_tickets
+                    """))
+                    connection.commit()
+                    print(f"Migrated {ticket_count} tickets from qr_tickets to qr_codes")
+            except Exception as e:
+                print(f"Error during qr_tickets migration: {e}")
         
         # Create OAuthAccount table if it doesn't exist
         if 'oauth_accounts' not in inspector.get_table_names():
@@ -141,10 +154,42 @@ def migrate_schema():
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     team_id INT,
                     name VARCHAR(255) NOT NULL,
-                    event_name VARCHAR(255),
+                    event_id INT,
                     description TEXT,
                     achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (team_id) REFERENCES teams(id)
+                    qr_code_id INT,
+                    FOREIGN KEY (team_id) REFERENCES teams(id),
+                    FOREIGN KEY (event_id) REFERENCES events(id),
+                    FOREIGN KEY (qr_code_id) REFERENCES qr_codes(id)
+                )
+            """))
+        
+        # Create QRSet table if it doesn't exist
+        if 'qr_sets' not in inspector.get_table_names():
+            print("Creating qr_sets table")
+            connection.execute(text("""
+                CREATE TABLE qr_sets (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_by INT,
+                    FOREIGN KEY (created_by) REFERENCES users(id)
+                )
+            """))
+        
+        # Create Event table if it doesn't exist
+        if 'events' not in inspector.get_table_names():
+            print("Creating events table")
+            connection.execute(text("""
+                CREATE TABLE events (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    location VARCHAR(200),
+                    event_date TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )
             """))
         

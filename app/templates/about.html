@@ -1,23 +1,61 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold text-irish-green mb-4">About LeagueLedger</h1>
+    <h1 class="text-2xl font-bold text-irish-green mb-4">{{ _("About LeagueLedger") }}</h1>
     <p class="mb-4">
+        {% if locale == "de" %}
+        LeagueLedger ist Ihr ultimativer Begleiter für die Verfolgung von Pub-Quiz-Team-Erfolgen. Wir möchten eine unterhaltsame und ansprechende Plattform für Quiz-Enthusiasten bieten, um sich zu vernetzen, zu wetteifern und ihr Wissen zu feiern.
+        {% else %}
         LeagueLedger is your ultimate companion for tracking pub quiz team achievements. We aim to provide a fun and engaging platform for quiz enthusiasts to connect, compete, and celebrate their knowledge.
+        {% endif %}
     </p>
     <p class="mb-4">
+        {% if locale == "de" %}
+        Als Pub-Quiz-Meister können Sie QR-Codes für Ihre bestplatzierten Teams generieren, diese verteilen und Teams diese auf unserer Website für Punkte einlösen lassen.
+        {% else %}
         As a pub quiz master, you can generate printout QR codes for your top-ranking teams, distribute them, and let teams redeem them for points on our website.
+        {% endif %}
     </p>
     <p class="mb-4">
+        {% if locale == "de" %}
+        Als Pub-Quiz-Teammitglied können Sie QR-Codes einlösen, einen Teamnamen erstellen, andere Mitglieder einladen und Social-Logins für einen einfachen Zugang nutzen.
+        {% else %}
         As a pub quiz team member, you can redeem QR codes, create a team name, invite other members, and use social logins for easy access.
+        {% endif %}
     </p>
-    <h2 class="text-xl font-semibold text-irish-green mt-6 mb-2">Our Mission</h2>
+    <h2 class="text-xl font-semibold text-irish-green mt-6 mb-2">
+        {% if locale == "de" %}Unsere Mission{% else %}Our Mission{% endif %}
+    </h2>
     <p class="mb-4">
+        {% if locale == "de" %}
+        Die Pub-Quiz-Erfahrung zu verbessern, indem wir eine nahtlose und intuitive Plattform für die Verfolgung des Teamfortschritts bieten, freundlichen Wettbewerb fördern und den Geist des Quiz feiern.
+        {% else %}
         To enhance the pub quiz experience by providing a seamless and intuitive platform for tracking team progress, fostering friendly competition, and celebrating the spirit of trivia.
+        {% endif %}
     </p>
-    <h2 class="text-xl font-semibold text-irish-green mt-6 mb-2">Our Team</h2>
+    <h2 class="text-xl font-semibold text-irish-green mt-6 mb-2">
+        {% if locale == "de" %}Unser Team{% else %}Our Team{% endif %}
+    </h2>
     <p class="mb-4">
-        LeagueLedger is an Open-Source initiative and part of the KaufDeinQuiz platform. It is brought to you by Christian Louis IT Beratung und Medienproduktion, a team of dedicated quiz enthusiasts and software developers passionate about creating innovative solutions for the pub quiz community.
+        {% if locale == "de" %}
+        LeagueLedger ist eine Open-Source-Initiative und Teil der KaufDeinQuiz-Plattform. Es wird von Christian Louis IT Beratung und Medienproduktion entwickelt, unter der Leitung von Christian Krakau-Louis, einem Team von engagierten Quiz-Enthusiasten und Softwareentwicklern, die leidenschaftlich daran arbeiten, innovative Lösungen für die Pub-Quiz-Community zu schaffen.
+        {% else %}
+        LeagueLedger is an Open-Source initiative and part of the KaufDeinQuiz platform. It is brought to you by Christian Louis IT Beratung und Medienproduktion, led by Christian Krakau-Louis, a team of dedicated quiz enthusiasts and software developers passionate about creating innovative solutions for the pub quiz community.
+        {% endif %}
+    </p>
+    <h2 class="text-xl font-semibold text-irish-green mt-6 mb-2">
+        {% if locale == "de" %}Lizenz{% else %}License{% endif %}
+    </h2>
+    <p class="mb-4">
+        {% if locale == "de" %}
+        LeagueLedger ist unter der Apache License 2.0 lizenziert. Die vollständige Lizenz finden Sie in unserer GitHub-Repository oder auf Anfrage.
+        {% else %}
+        LeagueLedger is licensed under the Apache License 2.0. You can find the full license in our GitHub repository or upon request.
+        {% endif %}
+    </p>
+    
+    <p class="mt-8 text-sm text-gray-600">
+        {% if locale == "de" %}Letzte Aktualisierung: April 2025{% else %}Last updated: April 2025{% endif %}
     </p>
 </div>
 {% endblock %}

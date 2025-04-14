@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto p-4">
+  <div class="mb-8">
+    <div class="flex items-center">
+      <a href="/qr" class="text-irish-green hover:underline mr-4">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </a>
+      <h1 class="text-3xl font-bold text-irish-green">{{ qr_set.name }}</h1>
+    </div>
+    {% if qr_set.description %}
+      <p class="text-gray-600 mt-2">{{ qr_set.description }}</p>
+    {% endif %}
+    <p class="text-sm text-gray-500 mt-1">Created on {{ qr_set.created_at.strftime('%Y-%m-%d') }}</p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-8">
+    <!-- QR Code Creation -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-bold text-irish-green mb-4">Add QR Code</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Create QR codes for points and achievements in this set
+      </p>
+
+      <form id="qrCodeForm" action="/qr/sets/{{ qr_set.id }}/codes" method="post" class="space-y-4">
+        <div>
+          <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+          <input type="text" name="title" id="title" required
+            class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
+            placeholder="e.g., 1st Place, Most Creative, etc.">
+        </div>
+
+        <div>
+          <label for="points" class="block text-sm font-medium text-gray-700">Points</label>
+          <input type="number" name="points" id="points" step="0.1" min="0" value="10"
+            class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green">
+        </div>
+
+        <div>
+          <label for="achievement_name" class="block text-sm font-medium text-gray-700">Achievement (Optional)</label>
+          <input type="text" name="achievement_name" id="achievement_name"
+            class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
+            placeholder="e.g., Quiz Champion, Top Scorer">
+        </div>
+
+        <div class="flex items-center">
+          <input type="checkbox" name="is_achievement_only" id="is_achievement_only" class="h-4 w-4 text-irish-green focus:ring-irish-green border-gray-300 rounded">
+          <label for="is_achievement_only" class="ml-2 block text-sm text-gray-700">
+            Achievement only (no points)
+          </label>
+        </div>
+
+        <div>
+          <label for="description" class="block text-sm font-medium text-gray-700">Description (Optional)</label>
+          <textarea name="description" id="description"
+            class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-irish-green"
+            placeholder="Description of this QR code" rows="2"></textarea>
+        </div>
+
+        <button type="submit"
+          class="w-full bg-irish-green hover:bg-opacity-90 text-white font-bold py-2 px-4 rounded transition">
+          Add QR Code
+        </button>
+      </form>
+    </div>
+
+    <!-- Common QR Code Templates -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-bold text-irish-green mb-4">Quick Templates</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Click to quickly add common QR code types to this set
+      </p>
+
+      <div class="space-y-3">
+        <button class="w-full border border-gray-200 rounded-md p-3 hover:bg-gray-50 text-left"
+                onclick="useQRTemplate('1st Place', 25, 'First Place Winner', false, 'First place award (25 points)')">
+          <div class="flex items-center">
+            <div class="bg-yellow-500 rounded-full h-6 w-6 flex items-center justify-center mr-3">
+              <i class="fas fa-trophy text-white text-xs"></i>
+            </div>
+            <div>
+              <h3 class="font-medium">1st Place (25 points)</h3>
+              <p class="text-xs text-gray-500">Top winner award</p>
+            </div>
+          </div>
+        </button>
+
+        <button class="w-full border border-gray-200 rounded-md p-3 hover:bg-gray-50 text-left"
+                onclick="useQRTemplate('2nd Place', 15, 'Second Place Winner', false, 'Second place award (15 points)')">
+          <div class="flex items-center">
+            <div class="bg-gray-400 rounded-full h-6 w-6 flex items-center justify-center mr-3">
+              <i class="fas fa-medal text-white text-xs"></i>
+            </div>
+            <div>
+              <h3 class="font-medium">2nd Place (15 points)</h3>
+              <p class="text-xs text-gray-500">Runner-up award</p>
+            </div>
+          </div>
+        </button>
+
+        <button class="w-full border border-gray-200 rounded-md p-3 hover:bg-gray-50 text-left"
+                onclick="useQRTemplate('3rd Place', 10, 'Third Place Winner', false, 'Third place award (10 points)')">
+          <div class="flex items-center">
+            <div class="bg-amber-700 rounded-full h-6 w-6 flex items-center justify-center mr-3">
+              <i class="fas fa-award text-white text-xs"></i>
+            </div>
+            <div>
+              <h3 class="font-medium">3rd Place (10 points)</h3>
+              <p class="text-xs text-gray-500">Third place award</p>
+            </div>
+          </div>
+        </button>
+
+        <button class="w-full border border-gray-200 rounded-md p-3 hover:bg-gray-50 text-left"
+                onclick="useQRTemplate('Estimate Winner', 0, 'Closest Guess Award', true, 'Achievement for closest estimate')">
+          <div class="flex items-center">
+            <div class="bg-blue-500 rounded-full h-6 w-6 flex items-center justify-center mr-3">
+              <i class="fas fa-bullseye text-white text-xs"></i>
+            </div>
+            <div>
+              <h3 class="font-medium">Estimate Winner</h3>
+              <p class="text-xs text-gray-500">Achievement only (no points)</p>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- QR Set Actions -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-bold text-irish-green mb-4">QR Set Actions</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Create printable PDFs and admin codes for this set
+      </p>
+
+      <div class="space-y-4">
+        <a href="/qr/sets/{{ qr_set.id }}/pdf" class="block bg-irish-green text-white text-center font-bold py-3 px-4 rounded hover:opacity-90 transition">
+          <i class="fas fa-file-pdf mr-2"></i> Generate PDF
+        </a>
+
+        <div class="border rounded-md p-4">
+          <h3 class="font-medium mb-2">Admin QR Code</h3>
+          <p class="text-xs text-gray-500 mb-3">
+            Use this special QR code to link all codes in this set to an event. Print this on each page.
+          </p>
+          <div class="text-center">
+            <img src="/qr/sets/{{ qr_set.id }}/generate-admin" alt="Admin QR Code" class="mx-auto h-32">
+          </div>
+          <p class="text-xs text-center mt-2">Scan to link all QR codes to an event</p>
+        </div>
+
+        <div class="mt-6 pt-6 border-t">
+          <h3 class="font-medium text-red-600">Danger Zone</h3>
+          <p class="text-xs text-gray-500 mt-1 mb-3">These actions cannot be undone</p>
+          <button id="deleteSetBtn" class="text-red-600 border border-red-600 rounded px-3 py-1 text-sm hover:bg-red-50">
+            <i class="fas fa-trash-alt mr-1"></i> Delete Set
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Codes List -->
+  <div class="mt-10">
+    <h2 class="text-2xl font-bold text-irish-green mb-4">QR Codes in this Set</h2>
+    
+    {% if qr_codes %}
+      <div class="bg-white shadow overflow-hidden rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                QR Code
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Details
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Points
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Achievement
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {% for qr_code in qr_codes %}
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <img src="/qr/code/{{ qr_code.code }}" alt="QR Code" class="h-16 w-16">
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{ qr_code.title or "Untitled" }}</div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    Code: {{ qr_code.code[:10] }}...
+                  </div>
+                  {% if qr_code.description %}
+                    <div class="text-xs text-gray-500 mt-1">{{ qr_code.description }}</div>
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="px-2 inline-flex text-sm leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if qr_code.points > 0 else 'bg-gray-100 text-gray-800' }}">
+                    {{ qr_code.points }} pts
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {% if qr_code.achievement_name %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <i class="fas fa-award mr-1"></i>
+                      {{ qr_code.achievement_name }}
+                    </span>
+                  {% else %}
+                    <span class="text-gray-400">None</span>
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  {% if qr_code.used %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Redeemed
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Available
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <a href="{{ base_url }}/redeem/{{ qr_code.code }}" target="_blank" class="text-irish-green hover:underline">
+                    <i class="fas fa-external-link-alt mr-1"></i> View
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
+        <i class="fas fa-qrcode text-gray-400 text-3xl mb-3"></i>
+        <p class="text-gray-600">No QR codes in this set yet. Add your first QR code using the form.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // QR Code template function
+  function useQRTemplate(title, points, achievement, isAchievementOnly, description) {
+    document.getElementById('title').value = title;
+    document.getElementById('points').value = points;
+    document.getElementById('achievement_name').value = achievement;
+    document.getElementById('is_achievement_only').checked = isAchievementOnly;
+    document.getElementById('description').value = description;
+    
+    // Scroll to the form
+    document.getElementById('qrCodeForm').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Delete Set confirmation
+  document.getElementById('deleteSetBtn').addEventListener('click', function() {
+    if (confirm('Are you sure you want to delete this entire set? This action cannot be undone.')) {
+      // Send delete request - this would need an endpoint implementation
+      alert('Delete functionality will be implemented in a future update');
+    }
+  });
+</script>
+{% endblock %}

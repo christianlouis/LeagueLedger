@@ -1,0 +1,158 @@
+/* 
+ * LeagueLedger Main Stylesheet
+ * Version: 1.0.0
+ * Date: April 13, 2025
+ */
+
+:root {
+  /* LeagueLedger brand color palette */
+  --irish-green: #006837;
+  --golden-ale: #FFB400;
+  --cream-white: #F5F0E1;
+  --black-stout: #1A1A1A;
+  --guinness-red: #B22222;
+  
+  /* UI colors */
+  --success: #28a745;
+  --danger: #dc3545;
+  --warning: #ffc107;
+  --info: #17a2b8;
+}
+
+/* Base styles */
+body {
+  font-family: 'Open Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.6;
+  color: var(--black-stout);
+  background-color: #f8f9fa;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Garamond', 'Georgia', serif;
+  color: var(--irish-green);
+}
+
+/* Custom button styles */
+.btn-irish {
+  background-color: var(--irish-green);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  transition: opacity 0.2s ease;
+}
+
+.btn-irish:hover {
+  opacity: 0.9;
+}
+
+.btn-ale {
+  background-color: var(--golden-ale);
+  color: var(--black-stout);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  transition: opacity 0.2s ease;
+}
+
+.btn-ale:hover {
+  opacity: 0.9;
+}
+
+/* QR Code styles */
+.qr-container {
+  padding: 1rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  display: inline-block;
+}
+
+.qr-title {
+  margin-top: 0.5rem;
+  font-weight: bold;
+  color: var(--irish-green);
+  text-align: center;
+}
+
+.qr-points {
+  font-size: 0.9rem;
+  color: var(--golden-ale);
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Leaderboard styles */
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaderboard-table th {
+  background-color: var(--irish-green);
+  color: white;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.leaderboard-table tr:nth-child(even) {
+  background-color: var(--cream-white);
+}
+
+.leaderboard-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Rank badges */
+.rank-badge {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  line-height: 2rem;
+  text-align: center;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.rank-1 {
+  background-color: gold;
+  color: var(--black-stout);
+}
+
+.rank-2 {
+  background-color: silver;
+  color: var(--black-stout);
+}
+
+.rank-3 {
+  background-color: #cd7f32; /* bronze */
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .leaderboard-table thead {
+    display: none;
+  }
+  
+  .leaderboard-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.25rem;
+  }
+  
+  .leaderboard-table td {
+    display: block;
+    text-align: right;
+    padding: 0.5rem;
+  }
+  
+  .leaderboard-table td::before {
+    content: attr(data-label);
+    float: left;
+    font-weight: bold;
+    color: var(--irish-green);
+  }
+}

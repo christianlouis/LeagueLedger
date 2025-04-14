@@ -3,12 +3,13 @@
 Seed the database with initial testing data.
 """
 import random
+import uuid
 from datetime import datetime, timedelta
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
-from .models import User, Team, TeamMembership, QRTicket
+from .models import User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event
 from .db import SessionLocal
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -119,40 +120,164 @@ def seed_db():
         db.add_all(memberships)
         db.commit()
         
-        # Create QR tickets
-        has_created_at = table_has_column(db.bind, 'qr_tickets', 'created_at')
-        has_redeemed_at = table_has_column(db.bind, 'qr_tickets', 'redeemed_at')
-        has_event_name = table_has_column(db.bind, 'qr_tickets', 'event_name')
-        
-        event_names = [
-            "Music Trivia Night", 
-            "History Night", 
-            "Movie Trivia Night", 
-            "Sports Quiz", 
-            "General Knowledge"
+        # Create events for QR code linking
+        events = [
+            Event(name="Music Trivia Night", description="A night of musical quizzes", 
+                  event_date=datetime.now() - timedelta(days=60), 
+                  location="Irish Rover Pub"),
+            Event(name="History Night", description="Test your history knowledge", 
+                  event_date=datetime.now() - timedelta(days=45), 
+                  location="Irish Rover Pub"),
+            Event(name="Movie Trivia Night", description="All about cinema", 
+                  event_date=datetime.now() - timedelta(days=30), 
+                  location="Irish Rover Pub"),
+            Event(name="Sports Quiz", description="For sports enthusiasts", 
+                  event_date=datetime.now() - timedelta(days=15), 
+                  location="Irish Rover Pub"),
+            Event(name="General Knowledge", description="A bit of everything", 
+                  event_date=datetime.now() - timedelta(days=7), 
+                  location="Irish Rover Pub"),
+            Event(name="Irish Rover Pub Quiz April 2025", description="Monthly pub quiz", 
+                  event_date=datetime.now(), 
+                  location="Irish Rover Pub")
         ]
+        db.add_all(events)
+        db.commit()
         
-        # Create some basic tickets
-        tickets = []
+        # Create QR sets
+        qr_sets = [
+            QRSet(
+                name="Standard Pub Quiz",
+                description="Contains QR codes for 1st place (25 points), 2nd place (15 points), 3rd place (10 points), and 4th place (5 points)",
+                created_by=1  # Admin user
+            ),
+            QRSet(
+                name="Trivia Night with Achievements",
+                description="Special trivia night with QR codes for winners and achievement codes for trivia categories",
+                created_by=2  # John the quizmaster
+            )
+        ]
+        db.add_all(qr_sets)
+        db.commit()
+        
+        # Create QR codes (both used and unused)
+        qr_codes = []
+        
+        # First, create some QR codes in sets (unused)
+        # Standard Pub Quiz set
+        qr_set_1 = qr_sets[0]
+        qr_codes.extend([
+            QRCode(
+                code=str(uuid.uuid4()),
+                points=25,
+                title="1st Place",
+                description="First place award (25 points)",
+                achievement_name="First Place Winner",
+                qr_set_id=qr_set_1.id,
+                used=False
+            ),
+            QRCode(
+                code=str(uuid.uuid4()),
+                points=15,
+                title="2nd Place",
+                description="Second place award (15 points)",
+                achievement_name="Second Place Winner",
+                qr_set_id=qr_set_1.id,
+                used=False
+            ),
+            QRCode(
+                code=str(uuid.uuid4()),
+                points=10,
+                title="3rd Place",
+                description="Third place award (10 points)",
+                achievement_name="Third Place Winner",
+                qr_set_id=qr_set_1.id,
+                used=False
+            ),
+            QRCode(
+                code=str(uuid.uuid4()),
+                points=5,
+                title="4th Place",
+                description="Fourth place award (5 points)",
+                achievement_name=None,
+                qr_set_id=qr_set_1.id,
+                used=False
+            )
+        ])
+        
+        # Trivia Night set with special achievements
+        qr_set_2 = qr_sets[1]
+        qr_codes.extend([
+            QRCode(
+                code=str(uuid.uuid4()),
+                points=20,
+                title="Trivia Champion",
+                description="Overall winner of trivia night",
+                achievement_name="Trivia Champion",
+                qr_set_id=qr_set_2.id,
+                used=False
+            ),
+            QRCode(
+                code=str(uuid.uuid4()),
+                points=0,
+                title="Estimate Winner",
+                description="Closest guess to the correct answer",
+                achievement_name="Closest Guess Award",
+                is_achievement_only=True,
+                qr_set_id=qr_set_2.id,
+                used=False
+            ),
+            QRCode(
+                code=str(uuid.uuid4()),
+                points=0,
+                title="Film Buff",
+                description="Most movie questions correct",
+                achievement_name="Film Buff",
+                is_achievement_only=True,
+                qr_set_id=qr_set_2.id,
+                used=False
+            )
+        ])
+        
+        # Now create some already used/redeemed QR codes
         for i in range(15):
             points = random.choice([5, 10, 15, 20, 25])
             team_id = random.randint(1, len(teams))
             user_id = random.randint(1, len(users))
+            event_id = random.randint(1, len(events) - 1)  # Exclude the latest event
             
-            ticket_attrs = {
-                "code": f"TICKET{i:03d}",
-                "points": points,
-                "redeemed_by": user_id,
-                "redeemed_at_team": team_id,
-                "used": True
-            }
-            
-            if has_event_name:
-                ticket_attrs["event_name"] = random.choice(event_names)
+            achievement = None
+            if points >= 15:  # Only high points get achievements
+                achievement = random.choice(["Winner", "Top Scorer", "Quiz Master", None])
                 
-            tickets.append(QRTicket(**ticket_attrs))
+            redeemed_at = datetime.now() - timedelta(days=random.randint(7, 90))
+            
+            qr_codes.append(
+                QRCode(
+                    code=f"TICKET{i:03d}",
+                    points=points,
+                    title=f"{points} Points Ticket",
+                    achievement_name=achievement,
+                    redeemed_by=user_id,
+                    redeemed_at_team=team_id,
+                    redeemed_at=redeemed_at,
+                    event_id=event_id,
+                    used=True
+                )
+            )
+            
+            # Create achievement record if applicable
+            if achievement:
+                team_achievement = TeamAchievement(
+                    team_id=team_id,
+                    name=achievement,
+                    event_id=event_id,
+                    achieved_at=redeemed_at,
+                    qr_code_id=i + 1  # This will be assigned after the QR codes are committed
+                )
+                db.add(team_achievement)
         
-        db.add_all(tickets)
+        db.add_all(qr_codes)
         db.commit()
         
         print("Database seeded successfully!")

@@ -1,42 +1,104 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="max-w-lg mx-auto">
-  <div class="bg-white rounded-lg shadow-md p-6 mb-8 text-center">
+  <!-- Success Card -->
+  <div class="bg-white rounded-lg shadow-md p-8 mb-6 text-center">
     <div class="mb-6">
-      <div class="inline-block p-4 rounded-full bg-green-100">
-        <i class="fas fa-check-circle text-irish-green text-5xl"></i>
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
+        <i class="fas fa-check text-green-600 text-5xl"></i>
       </div>
+      <h1 class="text-2xl font-bold text-irish-green">Success!</h1>
+      
+      {% if achievement %}
+        <p class="text-gray-600 mt-2">Your team has earned an achievement and points!</p>
+      {% else %}
+        <p class="text-gray-600 mt-2">Your team has earned points!</p>
+      {% endif %}
     </div>
     
-    <h1 class="text-2xl font-bold text-irish-green mb-4">Success!</h1>
-    <p class="text-xl mb-2">You've earned <span class="font-bold">{{ points }}</span> points</p>
-    <p class="text-gray-600 mb-6">Points have been added to <span class="font-semibold">{{ team.name }}</span></p>
-    
-    <div class="p-4 bg-irish-green bg-opacity-10 rounded-lg border border-irish-green text-left mb-6">
-      <h3 class="font-bold text-irish-green mb-2">What's next?</h3>
-      <ul class="list-disc ml-5 text-gray-700">
-        <li>Check your team's position on the <a href="/leaderboard" class="text-irish-green hover:underline">leaderboard</a></li>
-        <li>Scan another QR code to earn more points</li>
-        <li>Invite friends to your team</li>
-      </ul>
+    <div class="space-y-4">
+      <div class="p-4 bg-irish-green bg-opacity-10 rounded-lg border border-irish-green">
+        <p class="font-bold text-irish-green mb-1">Points Earned:</p>
+        <p class="text-3xl">{{ points }}</p>
+      </div>
+      
+      {% if achievement %}
+      <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <p class="font-bold text-blue-800 mb-1">Achievement Unlocked:</p>
+        <div class="flex items-center justify-center">
+          <i class="fas fa-award text-amber-500 text-xl mr-2"></i>
+          <p class="text-2xl text-blue-800">{{ achievement }}</p>
+        </div>
+      </div>
+      {% endif %}
+      
+      <div class="p-4 bg-gray-50 rounded-lg">
+        <p class="font-bold mb-1">Team:</p>
+        <p>{{ team.name }}</p>
+      </div>
+      
+      {% if event %}
+      <div class="p-4 bg-purple-50 rounded-lg border border-purple-100">
+        <p class="font-bold text-purple-800 mb-1">Event:</p>
+        <p>{{ event.name }}</p>
+        <p class="text-sm text-gray-500">{{ event.event_date.strftime('%Y-%m-%d') }}</p>
+      </div>
+      {% endif %}
     </div>
-    
-    <div class="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-      <a href="/dashboard" class="bg-irish-green hover:bg-opacity-90 text-white font-medium py-2 px-4 rounded-md transition">
-        Go to Dashboard
+  </div>
+  
+  <!-- Next Steps -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-xl font-semibold text-irish-green mb-4">What's Next?</h3>
+    <div class="space-y-4">
+      <a href="/teams/{{ team.id }}" class="flex items-start hover:bg-gray-50 p-3 rounded-md cursor-pointer">
+        <div class="bg-cream-white p-2 rounded-full mr-3">
+          <i class="fas fa-users text-irish-green"></i>
+        </div>
+        <div>
+          <p class="font-medium">View Team Profile</p>
+          <p class="text-gray-600 text-sm">Check your team's achievements and points.</p>
+        </div>
       </a>
-      <a href="/dashboard/scan" class="bg-cream-white border border-irish-green text-irish-green font-medium py-2 px-4 rounded-md hover:bg-irish-green hover:text-white transition">
-        Scan Another Code
+      
+      <a href="/leaderboard" class="flex items-start hover:bg-gray-50 p-3 rounded-md cursor-pointer">
+        <div class="bg-cream-white p-2 rounded-full mr-3">
+          <i class="fas fa-trophy text-irish-green"></i>
+        </div>
+        <div>
+          <p class="font-medium">View Leaderboard</p>
+          <p class="text-gray-600 text-sm">See how your team ranks compared to others.</p>
+        </div>
+      </a>
+      
+      <a href="/scan" class="flex items-start hover:bg-gray-50 p-3 rounded-md cursor-pointer">
+        <div class="bg-cream-white p-2 rounded-full mr-3">
+          <i class="fas fa-qrcode text-irish-green"></i>
+        </div>
+        <div>
+          <p class="font-medium">Scan Another QR Code</p>
+          <p class="text-gray-600 text-sm">Got more codes to redeem? Scan them now.</p>
+        </div>
       </a>
     </div>
   </div>
   
-  <div class="text-center text-gray-600">
-    <p>Share your achievement!</p>
-    <div class="flex justify-center space-x-4 mt-2">
-      <a href="#" class="text-blue-600 hover:text-opacity-80"><i class="fab fa-facebook fa-lg"></i></a>
-      <a href="#" class="text-blue-400 hover:text-opacity-80"><i class="fab fa-twitter fa-lg"></i></a>
-      <a href="#" class="text-green-600 hover:text-opacity-80"><i class="fab fa-whatsapp fa-lg"></i></a>
+  <!-- Share -->
+  <div class="mt-6 text-center">
+    <p class="text-gray-500 mb-3">Share your achievement</p>
+    <div class="flex justify-center space-x-4">
+      <a href="https://twitter.com/intent/tweet?text=I just earned {{ points }} points{% if achievement %} and the '{{ achievement }}' achievement{% endif %} at {{ base_url }}!" 
+         target="_blank" class="text-blue-400 hover:text-blue-500">
+        <i class="fab fa-twitter text-2xl"></i>
+      </a>
+      <a href="https://www.facebook.com/sharer/sharer.php?u={{ base_url }}" 
+         target="_blank" class="text-blue-600 hover:text-blue-700">
+        <i class="fab fa-facebook text-2xl"></i>
+      </a>
+      <a href="https://api.whatsapp.com/send?text=I just earned {{ points }} points{% if achievement %} and the '{{ achievement }}' achievement{% endif %} at {{ base_url }}!" 
+         target="_blank" class="text-green-500 hover:text-green-600">
+        <i class="fab fa-whatsapp text-2xl"></i>
+      </a>
     </div>
   </div>
 </div>

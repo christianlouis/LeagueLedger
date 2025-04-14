@@ -9,7 +9,7 @@ from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 
 from ..db import SessionLocal
-from ..models import Team, TeamMembership, QRTicket
+from ..models import Team, TeamMembership, QRCode
 from ..templates_config import templates
 
 router = APIRouter()
@@ -45,20 +45,17 @@ async def show_leaderboard(
     query = db.query(
         Team.id,
         Team.name,
-        func.coalesce(func.sum(QRTicket.points), 0).label('total_points')
+        func.coalesce(func.sum(QRCode.points), 0).label('total_points')
     ).join(
-        QRTicket,
-        QRTicket.redeemed_at_team == Team.id,
+        QRCode,
+        QRCode.redeemed_at_team == Team.id,
         isouter=True
     )
     
     # Apply time filter if needed
     if cutoff_date:
-        # Note: This assumes QRTicket has a created_at or similar timestamp field
-        # If not, you would need to add one to track when points were added
-        # For now, this is a placeholder that assumes all tickets are from "now"
-        # query = query.filter(QRTicket.created_at >= cutoff_date)
-        pass
+        # Filter by redeemed_at timestamp if available
+        query = query.filter(QRCode.redeemed_at >= cutoff_date)
     
     # Group and order
     teams_ranking = query.group_by(Team.id).order_by(desc('total_points')).all()

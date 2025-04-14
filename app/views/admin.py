@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Type, Optional
 import inspect as py_inspect
 
 from ..db import SessionLocal, Base
-from ..models import User, Team, TeamMembership, QRTicket
+from ..models import User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event
 from ..templates_config import templates
 
 router = APIRouter()
@@ -21,7 +21,10 @@ MODELS = {
     'user': (User, "Users"),
     'team': (Team, "Teams"),
     'team_membership': (TeamMembership, "Team Memberships"),
-    'qr_ticket': (QRTicket, "QR Tickets"),
+    'qr_code': (QRCode, "QR Codes"),
+    'qr_set': (QRSet, "QR Sets"),
+    'team_achievement': (TeamAchievement, "Team Achievements"),
+    'event': (Event, "Events"),
 }
 
 def get_db():

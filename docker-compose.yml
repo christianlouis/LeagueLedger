@@ -12,8 +12,8 @@ services:
       MYSQL_ROOT_PASSWORD: "root_pass"
     ports:
       - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql:delegated
+    tmpfs:
+      - /var/lib/mysql  # Use RAM-based ephemeral storage instead of persistent volume
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
@@ -33,15 +33,13 @@ services:
       DB_NAME: "pubquiz_db"
       DB_USER: "pubquiz_user"
       DB_PASS: "pubquiz_pass"
-      # Add better error logging
       PYTHONUNBUFFERED: "1"
-    # Just run uvicorn directly, no need for pymysql install since it's in requirements.txt
+      LEAGUELEDGER_BASE_URL: "https://rover.leagueledger.net"  # Base URL for QR codes
     command: uvicorn app.main:app --host 0.0.0.0 --reload
     ports:
       - "8000:8000"
     volumes:
       - ./:/app:delegated
-
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
@@ -57,6 +55,4 @@ services:
     ports:
       - "8001:80"
 
-
-volumes:
-  db_data:
+# No persistent volumes defined - database will reset when container stops

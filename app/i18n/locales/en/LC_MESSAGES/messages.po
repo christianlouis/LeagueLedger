@@ -1,0 +1,108 @@
+# English translations for LeagueLedger.
+# Copyright (C) 2025 Christian Krakau-Louis
+# This file is distributed under the same license as the LeagueLedger project.
+msgid ""
+msgstr ""
+"Project-Id-Version: LeagueLedger 1.0\n"
+"Report-Msgid-Bugs-To: leagueledger@kaufdeinquiz.com\n"
+"POT-Creation-Date: 2025-04-15 12:00+0200\n"
+"PO-Revision-Date: 2025-04-15 12:00+0200\n"
+"Last-Translator: Christian Krakau-Louis <leagueledger@kaufdeinquiz.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: app/templates/base.html:43
+msgid "Home"
+msgstr "Home"
+
+#: app/templates/base.html:44
+msgid "Teams"
+msgstr "Teams"
+
+#: app/templates/base.html:45
+msgid "Leaderboard"
+msgstr "Leaderboard"
+
+#: app/templates/base.html:46
+msgid "Scan QR Code"
+msgstr "Scan QR Code"
+
+#: app/templates/base.html:55
+msgid "Profile"
+msgstr "Profile"
+
+#: app/templates/base.html:58
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: app/templates/base.html:61
+msgid "Admin"
+msgstr "Admin"
+
+#: app/templates/base.html:66
+msgid "Logout"
+msgstr "Logout"
+
+#: app/templates/base.html:71
+msgid "Sign In"
+msgstr "Sign In"
+
+#: app/templates/base.html:149
+msgid "Track your pub quiz team's progress."
+msgstr "Track your pub quiz team's progress."
+
+#: app/templates/base.html:149
+msgid "Scan QR codes to earn points."
+msgstr "Scan QR codes to earn points."
+
+#: app/templates/base.html:155
+msgid "Navigation"
+msgstr "Navigation"
+
+#: app/templates/base.html:167
+msgid "Account"
+msgstr "Account"
+
+#: app/templates/base.html:169
+msgid "Register"
+msgstr "Register"
+
+#: app/templates/base.html:179
+msgid "Legal"
+msgstr "Legal"
+
+#: app/templates/base.html:181
+msgid "About"
+msgstr "About"
+
+#: app/templates/base.html:182
+msgid "Contact"
+msgstr "Contact"
+
+#: app/templates/base.html:183
+msgid "Terms of Service"
+msgstr "Terms of Service"
+
+#: app/templates/base.html:184
+msgid "Privacy Policy"
+msgstr "Privacy Policy"
+
+#: app/templates/base.html:185
+msgid "Cookie Policy"
+msgstr "Cookie Policy"
+
+#: app/templates/base.html:186
+msgid "Imprint"
+msgstr "Imprint"
+
+#: app/templates/base.html:196
+msgid "Licensed under Apache License 2.0"
+msgstr "Licensed under Apache License 2.0"
+
+#: app/templates/about.html:4
+msgid "About LeagueLedger"
+msgstr "About LeagueLedger"

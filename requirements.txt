@@ -29,3 +29,7 @@ qrcode>=7.4.2
 
 # Image processing library for QR code generation
 Pillow>=9.0.0
+
+# PDF generation for QR code sheets
+reportlab>=3.6.12
+babel>=2.12.1

@@ -81,21 +81,56 @@ class TeamMember(Base):
     team = relationship("Team", back_populates="members")
 
 
-class QRTicket(Base):
-    __tablename__ = "qr_tickets"
+class QRSet(Base):
+    """A set of related QR codes, such as codes for different placements in a quiz"""
+    __tablename__ = "qr_sets"
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(128), unique=True, index=True)  # Unique token
-    points = Column(Integer, default=0)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    qr_codes = relationship("QRCode", back_populates="qr_set")
+    creator = relationship("User")
+
+
+class QRCode(Base):
+    """Unified QR code model that includes all the functionality of the old QRTicket and QRCode models"""
+    __tablename__ = "qr_codes"
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(128), unique=True, index=True, nullable=False)  # Unique token
+    points = Column(Float, default=0, nullable=False)
+    title = Column(String(100), nullable=True)  # e.g., "1st Place", "2nd Place"
+    description = Column(String(255), nullable=True)
+    
+    # Set relationship
+    qr_set_id = Column(Integer, ForeignKey("qr_sets.id"), nullable=True)
+    qr_set = relationship("QRSet", back_populates="qr_codes")
+    
+    # Achievement relationship
+    achievement_name = Column(String(255), nullable=True)  # Name of achievement this QR code grants
+    is_achievement_only = Column(Boolean, default=False)  # True for QR codes that grant achievements but no points
+    
+    # Redemption info
     redeemed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     redeemed_at_team = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    redeemed_at = Column(DateTime, nullable=True)
     used = Column(Boolean, default=False)
     
-    # Add timestamps to track when tickets were created and redeemed
+    # Extended functionality
+    max_uses = Column(Integer, nullable=True)  # null = single use, >1 for multi-use codes
     created_at = Column(DateTime, server_default=func.now())
-    redeemed_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)  # null = never expires
     
-    # Add event name to track which quiz event this ticket belongs to
-    event_name = Column(String(255), nullable=True)
+    # Event tracking
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=True)
+    event = relationship("Event")
+
+    def __repr__(self):
+        if self.title:
+            return f"QR Code: {self.title} ({self.points} points)"
+        return f"QR Code: {self.points} points"
 
 
 class TeamAchievement(Base):
@@ -103,11 +138,15 @@ class TeamAchievement(Base):
     id = Column(Integer, primary_key=True, index=True)
     team_id = Column(Integer, ForeignKey("teams.id"))
     name = Column(String(255), nullable=False)  # e.g., "1st Place"
-    event_name = Column(String(255), nullable=True)  # e.g., "History Night"
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=True)
     description = Column(Text, nullable=True)
     achieved_at = Column(DateTime, server_default=func.now())
+    qr_code_id = Column(Integer, ForeignKey("qr_codes.id"), nullable=True)
     
+    # Relationships
     team = relationship("Team")
+    event = relationship("Event")
+    qr_code = relationship("QRCode")
 
 
 class Event(Base):
@@ -146,30 +185,3 @@ class UserPoints(Base):
     
     # Relationships
     user = relationship("User", back_populates="points")
-
-
-class QRCode(Base):
-    __tablename__ = "qr_codes"
-    id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(100), unique=True, index=True, nullable=False)
-    points = Column(Float, default=1.0, nullable=False)
-    description = Column(String(200), nullable=True)
-    is_active = Column(Boolean, default=True)
-    max_uses = Column(Integer, nullable=True)  # null = unlimited
-    created_at = Column(DateTime, server_default=func.now())
-    expires_at = Column(DateTime, nullable=True)  # null = never expires
-    
-    # Relationships
-    redemptions = relationship("QRCodeRedemption", back_populates="qr_code")
-
-
-class QRCodeRedemption(Base):
-    __tablename__ = "qr_code_redemptions"
-    id = Column(Integer, primary_key=True, index=True)
-    qr_code_id = Column(Integer, ForeignKey("qr_codes.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    redeemed_at = Column(DateTime, server_default=func.now())
-    
-    # Relationships
-    qr_code = relationship("QRCode", back_populates="redemptions")
-    user = relationship("User")

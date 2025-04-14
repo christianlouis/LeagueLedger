@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create or join a team, manage membership.
+Teams management for users and admins.
 """
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import random  # For demo data
 
 from ..db import SessionLocal
-from ..models import Team, TeamMembership, User, QRTicket, TeamAchievement
+from ..models import Team, TeamMembership, User, QRCode, TeamAchievement
 from ..schemas import TeamCreate
 from ..templates_config import templates
 
@@ -106,17 +106,17 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
             })
     
     # Get total points
-    total_points = db.query(func.sum(QRTicket.points)).filter(
-        QRTicket.redeemed_at_team == team_id
+    total_points = db.query(func.sum(QRCode.points)).filter(
+        QRCode.redeemed_at_team == team_id
     ).scalar() or 0
     
     # Calculate rank based on points
     higher_teams = db.query(func.count(Team.id)).join(
-        QRTicket, 
-        QRTicket.redeemed_at_team == Team.id, 
+        QRCode, 
+        QRCode.redeemed_at_team == Team.id, 
         isouter=True
     ).group_by(Team.id).having(
-        func.sum(QRTicket.points) > total_points
+        func.sum(QRCode.points) > total_points
     ).scalar() or 0
     
     team_rank = higher_teams + 1
@@ -134,13 +134,13 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
         # Use raw SQL to check if column exists and get points
         has_redeemed_at = False
         inspector = inspect(db.bind)
-        if 'redeemed_at' in [col['name'] for col in inspector.get_columns('qr_tickets')]:
+        if 'redeemed_at' in [col['name'] for col in inspector.get_columns('qr_codes')]:
             has_redeemed_at = True
             
         if has_redeemed_at:
-            points_this_month = db.query(func.sum(QRTicket.points)).filter(
-                QRTicket.redeemed_at_team == team_id,
-                QRTicket.redeemed_at >= first_day_of_month
+            points_this_month = db.query(func.sum(QRCode.points)).filter(
+                QRCode.redeemed_at_team == team_id,
+                QRCode.redeemed_at >= first_day_of_month
             ).scalar() or points_this_month
     except Exception as e:
         print(f"Error calculating monthly points: {e}")
