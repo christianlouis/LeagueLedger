@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ locale }}">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}LeagueLedger - Pub Quiz Tracking{% endblock %}</title>
+    <title>LeagueLedger - Pub Quiz Tracking</title>
     
     <!-- Favicon -->
 
@@ -65,26 +65,10 @@
                 
                 <!-- Desktop Navigation -->
                 <div class="hidden md:flex space-x-6 items-center">
-                    <a href="/" class="hover:text-golden-ale transition">{{ _("Home") }}</a>
-                    <a href="/teams" class="hover:text-golden-ale transition">{{ _("Teams") }}</a>
-                    <a href="/leaderboard" class="hover:text-golden-ale transition">{{ _("Leaderboard") }}</a>
-                    <a href="/scan" class="hover:text-golden-ale transition">{{ _("Scan QR Code") }}</a>
-                    
-                    <!-- Language Selector -->
-                    <div class="relative dropdown">
-                        <button class="dropdown-toggle flex items-center space-x-1 hover:text-golden-ale transition">
-                            <i class="fas fa-globe text-lg"></i>
-                            <span>{{ SUPPORTED_LANGUAGES[locale] }}</span>
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                            {% for code, name in SUPPORTED_LANGUAGES.items() %}
-                                <a href="/set-language/{{ code }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 {% if locale == code %}font-bold{% endif %}">
-                                    {{ name }}
-                                </a>
-                            {% endfor %}
-                        </div>
-                    </div>
+                    <a href="/" class="hover:text-golden-ale transition">Home</a>
+                    <a href="/teams" class="hover:text-golden-ale transition">Teams</a>
+                    <a href="/leaderboard" class="hover:text-golden-ale transition">Leaderboard</a>
+                    <a href="/scan" class="hover:text-golden-ale transition">Scan QR Code</a>
                     
                     {% if user %}
                         <div class="relative dropdown">
@@ -95,43 +79,29 @@
                             </button>
                             <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
                                 <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-user mr-2"></i> {{ _("Profile") }}
+                                    <i class="fas fa-user mr-2"></i> Profile
                                 </a>
                                 <a href="/dashboard" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-tachometer-alt mr-2"></i> {{ _("Dashboard") }}
+                                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
                                 </a>
                                 {% if user.is_admin %}
                                     <a href="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                        <i class="fas fa-cog mr-2"></i> {{ _("Admin") }}
+                                        <i class="fas fa-cog mr-2"></i> Admin
                                     </a>
                                 {% endif %}
                                 <div class="border-t border-gray-100 my-1"></div>
                                 <a href="/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-sign-out-alt mr-2"></i> {{ _("Logout") }}
+                                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
                                 </a>
                             </div>
                         </div>
                     {% else %}
-                        <a href="/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition">{{ _("Sign In") }}</a>
+                        <a href="/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition">Sign In</a>
                     {% endif %}
                 </div>
                 
                 <!-- Mobile menu button -->
                 <div class="md:hidden flex items-center space-x-4">
-                    <!-- Mobile Language Selector -->
-                    <div class="relative dropdown">
-                        <button class="dropdown-toggle flex items-center hover:text-golden-ale transition">
-                            <i class="fas fa-globe text-lg"></i>
-                        </button>
-                        <div class="dropdown-menu hidden absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg py-1 z-50">
-                            {% for code, name in SUPPORTED_LANGUAGES.items() %}
-                                <a href="/set-language/{{ code }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 {% if locale == code %}font-bold{% endif %}">
-                                    {{ name }}
-                                </a>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
                     <button id="mobile-menu-button" class="text-white hover:text-golden-ale transition">
                         <i class="fas fa-bars text-2xl"></i>
                     </button>
@@ -141,19 +111,19 @@
             <!-- Mobile Navigation -->
             <div id="mobile-menu" class="hidden md:hidden mt-3 pb-3 border-t border-irish-green border-opacity-30">
                 <div class="flex flex-col space-y-2 mt-3">
-                    <a href="/" class="hover:text-golden-ale transition py-2">{{ _("Home") }}</a>
-                    <a href="/teams" class="hover:text-golden-ale transition py-2">{{ _("Teams") }}</a>
-                    <a href="/leaderboard" class="hover:text-golden-ale transition py-2">{{ _("Leaderboard") }}</a>
-                    <a href="/scan" class="hover:text-golden-ale transition py-2">{{ _("Scan QR Code") }}</a>
+                    <a href="/" class="hover:text-golden-ale transition py-2">Home</a>
+                    <a href="/teams" class="hover:text-golden-ale transition py-2">Teams</a>
+                    <a href="/leaderboard" class="hover:text-golden-ale transition py-2">Leaderboard</a>
+                    <a href="/scan" class="hover:text-golden-ale transition py-2">Scan QR Code</a>
                     {% if user %}
-                        <a href="/profile" class="hover:text-golden-ale transition py-2">{{ _("Profile") }}</a>
-                        <a href="/dashboard" class="hover:text-golden-ale transition py-2">{{ _("Dashboard") }}</a>
+                        <a href="/profile" class="hover:text-golden-ale transition py-2">Profile</a>
+                        <a href="/dashboard" class="hover:text-golden-ale transition py-2">Dashboard</a>
                         {% if user.is_admin %}
-                            <a href="/admin" class="hover:text-golden-ale transition py-2">{{ _("Admin") }}</a>
+                            <a href="/admin" class="hover:text-golden-ale transition py-2">Admin</a>
                         {% endif %}
-                        <a href="/logout" class="hover:text-golden-ale transition py-2">{{ _("Logout") }}</a>
+                        <a href="/logout" class="hover:text-golden-ale transition py-2">Logout</a>
                     {% else %}
-                        <a href="/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition text-center">{{ _("Sign In") }}</a>
+                        <a href="/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition text-center">Sign In</a>
                     {% endif %}
                 </div>
             </div>
@@ -174,53 +144,46 @@
                         <img src="{{ url_for('static', path='images/logos/monogram.png') }}" alt="LeagueLedger Logo" class="h-12">
                         <span class="ml-2 text-xl font-bold">LeagueLedger</span>
                     </div>
-                    <p class="text-sm">{{ _("Track your pub quiz team's progress.") }}<br>{{ _("Scan QR codes to earn points.") }}</p>
+                    <p class="text-sm">Track your pub quiz team's progress.<br>Scan QR codes to earn points.</p>
                 </div>
                 
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-8">
                     <div>
-                        <h3 class="text-golden-ale font-bold mb-4">{{ _("Navigation") }}</h3>
+                        <h3 class="text-golden-ale font-bold mb-4">Navigation</h3>
                         <ul class="space-y-2">
-                            <li><a href="/" class="hover:text-golden-ale transition">{{ _("Home") }}</a></li>
-                            <li><a href="/teams" class="hover:text-golden-ale transition">{{ _("Teams") }}</a></li>
-                            <li><a href="/leaderboard" class="hover:text-golden-ale transition">{{ _("Leaderboard") }}</a></li>
-                            <li><a href="/scan" class="hover:text-golden-ale transition">{{ _("Scan QR Code") }}</a></li>
+                            <li><a href="/" class="hover:text-golden-ale transition">Home</a></li>
+                            <li><a href="/teams" class="hover:text-golden-ale transition">Teams</a></li>
+                            <li><a href="/leaderboard" class="hover:text-golden-ale transition">Leaderboard</a></li>
+                            <li><a href="/scan" class="hover:text-golden-ale transition">Scan QR Code</a></li>
                         </ul>
                     </div>
                     
                     <div>
-                        <h3 class="text-golden-ale font-bold mb-4">{{ _("Account") }}</h3>
+                        <h3 class="text-golden-ale font-bold mb-4">Account</h3>
                         <ul class="space-y-2">
-                            <li><a href="/login" class="hover:text-golden-ale transition">{{ _("Sign In") }}</a></li>
-                            <li><a href="/register" class="hover:text-golden-ale transition">{{ _("Register") }}</a></li>
-                            <li><a href="/profile" class="hover:text-golden-ale transition">{{ _("Profile") }}</a></li>
-                            <li><a href="/dashboard" class="hover:text-golden-ale transition">{{ _("Dashboard") }}</a></li>
+                            <li><a href="/login" class="hover:text-golden-ale transition">Sign In</a></li>
+                            <li><a href="/register" class="hover:text-golden-ale transition">Register</a></li>
+                            <li><a href="/profile" class="hover:text-golden-ale transition">Profile</a></li>
+                            <li><a href="/dashboard" class="hover:text-golden-ale transition">Dashboard</a></li>
                         </ul>
                     </div>
                     
                     <div>
-                        <h3 class="text-golden-ale font-bold mb-4">{{ _("Legal") }}</h3>
+                        <h3 class="text-golden-ale font-bold mb-4">Legal</h3>
                         <ul class="space-y-2">
-                            <li><a href="/about" class="hover:text-golden-ale transition">{{ _("About") }}</a></li>
-                            <li><a href="/contact" class="hover:text-golden-ale transition">{{ _("Contact") }}</a></li>
-                            <li><a href="/terms" class="hover:text-golden-ale transition">{{ _("Terms of Service") }}</a></li>
-                            <li><a href="/privacy" class="hover:text-golden-ale transition">{{ _("Privacy Policy") }}</a></li>
-                            <li><a href="/cookies" class="hover:text-golden-ale transition">{{ _("Cookie Policy") }}</a></li>
-                            <li><a href="/impressum" class="hover:text-golden-ale transition">{{ _("Imprint") }}</a></li>
+                            <li><a href="/about" class="hover:text-golden-ale transition">About</a></li>
+                            <li><a href="/contact" class="hover:text-golden-ale transition">Contact</a></li>
+                            <li><a href="/terms" class="hover:text-golden-ale transition">Terms of Service</a></li>
+                            <li><a href="/privacy" class="hover:text-golden-ale transition">Privacy Policy</a></li>
+                            <li><a href="/cookies" class="hover:text-golden-ale transition">Cookie Policy</a></li>
+                            <li><a href="/impressum" class="hover:text-golden-ale transition">Imprint</a></li>
                         </ul>
                     </div>
                 </div>
             </div>
             <div class="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
                 <div class="flex items-center space-x-4">
-                    <p class="text-sm">&copy; 2025 LeagueLedger. {{ _("Licensed under Apache License 2.0") }}</p>
-                </div>
-                <div class="flex space-x-4 mt-4 md:mt-0">
-                    {% for code, name in SUPPORTED_LANGUAGES.items() %}
-                        <a href="/set-language/{{ code }}" class="hover:text-golden-ale transition {% if locale == code %}font-bold{% endif %}">
-                            {{ name }}
-                        </a>
-                    {% endfor %}
+                    <p class="text-sm">&copy; 2025 LeagueLedger. Licensed under Apache License 2.0</p>
                 </div>
             </div>
         </div>

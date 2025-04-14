@@ -12,7 +12,6 @@ from . import models
 from .templates_config import templates
 from .views import qr, redeem, teams, admin, leaderboard, dashboard, static, pages
 from .db_init import seed_db
-from app.i18n import get_translator, SUPPORTED_LANGUAGES, _  # Ensure `_` is correctly imported
 
 # Create tables on startup
 init_db()
@@ -35,8 +34,6 @@ static.configure_static_files(app)
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory="app/templates")
-templates.env.globals["SUPPORTED_LANGUAGES"] = SUPPORTED_LANGUAGES
-templates.env.globals["_"] = _
 
 # User context middleware to make template globals available
 @app.middleware("http")
@@ -52,34 +49,12 @@ async def add_template_globals(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# Add translation context processor to Jinja templates
-@app.middleware("http")
-async def add_translation_context(request: Request, call_next):
-    response = await call_next(request)
-    return response
-
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request, i18n: dict = Depends(get_translator)):
+async def read_root(request: Request):
     return templates.TemplateResponse(
         "index.html", 
-        {"request": request, "user": None, **i18n}
+        {"request": request, "user": None}
     )
-
-@app.api_route("/set-language/{language_code}", methods=["GET", "POST"])
-async def set_language(request: Request, language_code: str):
-    if request.method == "POST":
-        form = await request.form()
-        language = form.get("language", "en")
-    else:
-        language = language_code
-
-    if language in SUPPORTED_LANGUAGES:
-        request.session["language"] = language
-        response = RedirectResponse(url=request.headers.get("referer", "/"))
-        response.set_cookie(key="language", value=language, max_age=31536000)  # 1 year
-        return response
-
-    return {"message": f"Invalid language code: {language}"}
 
 # Routers
 app.include_router(pages.router, tags=["Pages"])  # Pages router for index and static pages

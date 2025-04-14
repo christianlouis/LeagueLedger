@@ -1,16 +1,8 @@
 import gettext
 import os
-from typing import Dict, List, Callable, Any
-from fastapi import Request, Depends
+from fastapi import Request
 from babel.support import Translations
 from functools import lru_cache
-from gettext import gettext as _  # Ensure `_` is imported for translations
-
-# Define supported languages
-SUPPORTED_LANGUAGES = {
-    'en': 'English',
-    'de': 'Deutsch',
-}
 
 DEFAULT_LANGUAGE = 'de'  # Default is German
 
@@ -40,12 +32,12 @@ def get_locale_from_request(request: Request) -> str:
     """
     # Check URL parameter
     lang_param = request.query_params.get('lang')
-    if lang_param in SUPPORTED_LANGUAGES:
+    if lang_param:
         return lang_param
         
     # Check session
     session = request.session.get('language')
-    if session in SUPPORTED_LANGUAGES:
+    if session:
         return session
     
     # Check Accept-Language header
@@ -54,21 +46,6 @@ def get_locale_from_request(request: Request) -> str:
         for lang in accept_language.split(','):
             lang_code = lang.split(';')[0].strip().lower()
             lang_code = lang_code.split('-')[0]  # Convert 'en-US' to 'en'
-            if lang_code in SUPPORTED_LANGUAGES:
-                return lang_code
+            return lang_code
     
     return DEFAULT_LANGUAGE
-
-def get_translator(locale: str = Depends(get_locale_from_request)):
-    """
-    Return a FastAPI dependency that provides the translation function
-    """
-    translations = get_translation(locale)
-    gettext_func = translations.gettext
-    
-    # Make the gettext function available with both _ and gettext names
-    return {
-        "_": gettext_func,
-        "gettext": gettext_func,
-        "locale": locale
-    }

@@ -4,31 +4,6 @@ from pathlib import Path
 
 # Define base directory
 BASE_DIR = Path(__file__).parent.parent
-LOCALE_DIR = BASE_DIR / "app" / "i18n" / "locales"
-
-def compile_all_translations():
-    """Compile .po files into .mo files for all languages"""
-    print("Compiling translations...")
-    
-    for lang_dir in LOCALE_DIR.iterdir():
-        if lang_dir.is_dir():
-            lang_code = lang_dir.name
-            po_file = lang_dir / "LC_MESSAGES" / "messages.po"
-            
-            if po_file.exists():
-                print(f"Compiling {lang_code} translations...")
-                try:
-                    subprocess.run([
-                        "pybabel", "compile",
-                        "-f", "-i", str(po_file),
-                        "-o", str(po_file.parent / "messages.mo"),
-                        "--statistics"
-                    ], check=True)
-                    print(f"Successfully compiled {lang_code} translations")
-                except subprocess.CalledProcessError as e:
-                    print(f"Error compiling {lang_code} translations: {e}")
-            else:
-                print(f"No .po file found for {lang_code}")
 
 def update_pot_file():
     """Extract translatable strings from templates and create a POT file"""
@@ -54,7 +29,7 @@ def update_po_files():
     
     pot_file = BASE_DIR / "app" / "i18n" / "messages.pot"
     
-    for lang_dir in LOCALE_DIR.iterdir():
+    for lang_dir in (BASE_DIR / "app" / "i18n" / "locales").iterdir():
         if lang_dir.is_dir():
             lang_code = lang_dir.name
             po_file = lang_dir / "LC_MESSAGES" / "messages.po"
@@ -97,4 +72,3 @@ if __name__ == "__main__":
     
     update_pot_file()
     update_po_files()
-    compile_all_translations()
