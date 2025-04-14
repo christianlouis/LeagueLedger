@@ -14,12 +14,16 @@ router = APIRouter()
 def user_dashboard(request: Request, db: Session = Depends(get_db)):
     """User dashboard showing teams, events and stats"""
     try:
-        # Fetch user data directly from the database
-        user = db.query(models.User).filter_by(email="admin@example.com").first()  # Example user lookup
+        # Get user ID from session instead of using hardcoded admin
+        user_id = request.session.get("user_id")
+        if not user_id:
+            # Redirect to login if not authenticated
+            return RedirectResponse("/auth/login", status_code=303)
+
+        # Fetch user data from the database using session user ID
+        user = db.query(models.User).get(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-
-        user_id = user.id
 
         # Initialize default values in case of errors
         team_count = 0
@@ -28,9 +32,20 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)):
         recent_events = []
         user_teams = []
 
-        # Check if TeamMember model exists before querying
-        if hasattr(models, "TeamMember"):
-            # Get the team count for this user
+        # Get team memberships - check both TeamMember and TeamMembership models
+        if hasattr(models, "TeamMembership"):
+            # Primary check - use TeamMembership model
+            team_count = db.query(func.count(models.TeamMembership.team_id))\
+                .filter(models.TeamMembership.user_id == user_id)\
+                .scalar() or 0
+
+            # Get user teams
+            user_teams = db.query(models.Team)\
+                .join(models.TeamMembership)\
+                .filter(models.TeamMembership.user_id == user_id)\
+                .all()
+        elif hasattr(models, "TeamMember"):
+            # Fallback to TeamMember model if TeamMembership doesn't exist
             team_count = db.query(func.count(models.TeamMember.team_id))\
                 .filter(models.TeamMember.user_id == user_id)\
                 .scalar() or 0
@@ -41,15 +56,23 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)):
                 .filter(models.TeamMember.user_id == user_id)\
                 .all()
 
-        # Check if UserPoints model exists before querying
-        if hasattr(models, "UserPoints"):
-            # Get the total points safely
-            total_points_result = db.query(func.sum(models.UserPoints.points))\
-                .filter(models.UserPoints.user_id == user_id)\
-                .first()
+        # Get total points from QRCode redemptions
+        # First try directly from QRCodes tied to user
+        total_points_result = db.query(func.sum(models.QRCode.points))\
+            .filter(models.QRCode.redeemed_by == user_id, models.QRCode.used == True)\
+            .first()
 
-            if total_points_result and total_points_result[0]:
-                total_points = total_points_result[0]
+        if total_points_result and total_points_result[0]:
+            total_points = total_points_result[0]
+        else:
+            # Fallback to UserPoints model if available
+            if hasattr(models, "UserPoints"):
+                points_result = db.query(func.sum(models.UserPoints.points))\
+                    .filter(models.UserPoints.user_id == user_id)\
+                    .first()
+                
+                if points_result and points_result[0]:
+                    total_points = points_result[0]
 
         # Check if EventAttendee model exists before querying
         if hasattr(models, "EventAttendee") and hasattr(models, "Event"):

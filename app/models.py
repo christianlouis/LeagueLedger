@@ -2,15 +2,16 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from datetime import datetime
-from .db import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=True)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=True)  # Can be null for OAuth users
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     is_active = Column(Boolean, default=True)
@@ -21,11 +22,21 @@ class User(Base):
     reset_token_expires_at = Column(DateTime, nullable=True)
     last_login = Column(DateTime, nullable=True)
 
+    # OAuth fields
+    is_oauth_user = Column(Boolean, default=False)
+    oauth_id = Column(String(255), nullable=True)
+    oauth_provider = Column(String(50), nullable=True)
+    picture = Column(String(255), nullable=True)  # URL to profile picture
+
     # Relationships
     memberships = relationship("TeamMembership", back_populates="user")
     teams = relationship("TeamMember", back_populates="user")
     points = relationship("UserPoints", back_populates="user")
     events_attended = relationship("EventAttendee", back_populates="user")
+    owned_teams = relationship("Team", back_populates="owner")
+
+    def __repr__(self):
+        return f"<User {self.username}>"
 
 
 class OAuthAccount(Base):
@@ -50,10 +61,12 @@ class Team(Base):
     is_public = Column(Boolean, default=False)  # For team privacy setting
     created_at = Column(DateTime, server_default=func.now())  # For team founded date
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Relationships
     memberships = relationship("TeamMembership", back_populates="team")
     members = relationship("TeamMember", back_populates="team")
+    owner = relationship("User", back_populates="owned_teams")
 
 
 class TeamMembership(Base):

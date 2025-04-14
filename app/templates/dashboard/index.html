@@ -50,6 +50,36 @@
     {% endif %}
   </div>
   
+  <!-- Teams Section -->
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-semibold text-irish-green">Your Teams</h2>
+      <a href="/teams" class="text-irish-green hover:underline">View All</a>
+    </div>
+    
+    {% if user_teams %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for team in user_teams %}
+          <div class="border rounded-lg p-4 hover:bg-gray-50">
+            <h3 class="font-medium mb-2">{{ team.name }}</h3>
+            <div class="flex justify-between text-sm">
+              <span>Rank: #{{ team.rank|default('N/A') }}</span>
+              <span>{{ team.points|default(0) }} pts</span>
+            </div>
+            <a href="/teams/{{ team.id }}" class="block w-full bg-irish-green bg-opacity-10 text-irish-green text-center mt-3 py-1 rounded">
+              View Team
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 mb-4">You haven't joined any teams yet.</p>
+      <a href="/teams" class="inline-block bg-irish-green text-white py-2 px-4 rounded-md hover:bg-opacity-90 transition">
+        Join a Team
+      </a>
+    {% endif %}
+  </div>
+  
   <!-- Quick Actions -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div class="bg-white p-6 rounded-lg shadow-md">

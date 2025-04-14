@@ -9,7 +9,7 @@ from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 
 from ..db import SessionLocal
-from ..models import Team, TeamMembership, QRCode
+from ..models import Team, TeamMembership, QRCode, User
 from ..templates_config import templates
 
 router = APIRouter()
@@ -28,6 +28,12 @@ async def show_leaderboard(
     db: Session = Depends(get_db)
 ):
     """Show the leaderboard with team rankings."""
+    
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
     
     # Define cutoff date based on timeframe
     cutoff_date = None
@@ -81,6 +87,7 @@ async def show_leaderboard(
             "teams": ranked_teams,
             "top_teams": top_teams,
             "timeframe": timeframe,
-            "time_label": time_label
+            "time_label": time_label,
+            "user": user  # Add user to the context
         }
     )

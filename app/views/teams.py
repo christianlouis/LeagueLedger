@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import random  # For demo data
 
 from ..db import SessionLocal
-from ..models import Team, TeamMembership, User, QRCode, TeamAchievement
+from ..models import Team, TeamMembership, User, QRCode, TeamAchievement, TeamMember
 from ..schemas import TeamCreate
 from ..templates_config import templates
 
@@ -30,12 +30,26 @@ def list_teams(request: Request, db: Session = Depends(get_db)):
     # Get the user's teams to highlight teams they're already in
     user_team_ids = []
     
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+        # Get teams that user is a member of
+        memberships = db.query(TeamMembership).filter(TeamMembership.user_id == user_id).all()
+        user_team_ids = [membership.team_id for membership in memberships]
+    
+    # Get error message if present
+    error = request.query_params.get("error")
+    
     return templates.TemplateResponse(
         "teams.html", 
         {
             "request": request, 
             "teams": teams,
             "user_team_ids": user_team_ids,
+            "user": user,
+            "error": error,
             "brand_colors": {
                 "irish_green": "#006837",
                 "golden_ale": "#FFB400",
@@ -48,31 +62,153 @@ def list_teams(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/create")
 def create_team(request: Request, name: str = Form(...), db: Session = Depends(get_db)):
-    # Create team
-    new_team = Team(name=name)
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login?next=/teams", status_code=303)
+    
+    # Get the user
+    user = db.query(User).get(user_id)
+    if not user:
+        return RedirectResponse("/auth/login", status_code=303)
+    
+    # Check if team name already exists
+    existing_team = db.query(Team).filter(Team.name == name).first()
+    if existing_team:
+        # Return to teams page with error message
+        # In a real app, you'd add error handling/flash messages
+        return RedirectResponse("/teams/?error=Team+name+already+exists", status_code=303)
+    
+    # Create team with the user as owner
+    new_team = Team(name=name, owner_id=user_id)
     db.add(new_team)
     db.commit()
     db.refresh(new_team)
+    
+    # Make the user an admin of the team in TeamMembership
+    team_membership = TeamMembership(
+        user_id=user_id,
+        team_id=new_team.id,
+        is_admin=True  # User becomes admin of the team
+    )
+    db.add(team_membership)
+    
+    # Check if TeamMember model exists in the database
+    try:
+        # Use a safer approach to check if the model exists and is usable
+        if 'team_members' in inspect(db.bind).get_table_names():
+            # Create TeamMember relationship as well
+            team_member = TeamMember(
+                user_id=user_id,
+                team_id=new_team.id,
+                is_captain=True  # User becomes captain in TeamMember model
+            )
+            db.add(team_member)
+    except Exception as e:
+        print(f"Could not create TeamMember record: {str(e)}")
+        # Continue even if this fails - TeamMembership is primary relationship
+    
+    db.commit()
 
     return RedirectResponse("/teams/", status_code=303)
 
 @router.post("/join/{team_id}")
 def join_team(request: Request, team_id: int, db: Session = Depends(get_db)):
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login?next=/teams", status_code=303)
+        
+    # Get user
+    user = db.query(User).get(user_id)
+    if not user:
+        return RedirectResponse("/auth/login", status_code=303)
+    
+    # Find the team
     team = db.query(Team).filter_by(id=team_id).first()
     if not team:
-        return RedirectResponse("/teams/", status_code=303)
+        return RedirectResponse("/teams/?error=Team+not+found", status_code=303)
 
     # Check if membership exists
-    existing = db.query(TeamMembership).filter_by(team_id=team.id).first()
+    existing = db.query(TeamMembership)\
+        .filter_by(user_id=user_id, team_id=team.id)\
+        .first()
+        
     if existing:
-        return RedirectResponse("/teams/", status_code=303)
+        return RedirectResponse("/teams/?error=You+are+already+a+member+of+this+team", status_code=303)
 
     # Create membership
-    new_member = TeamMembership(team_id=team.id, is_admin=False)
+    new_member = TeamMembership(
+        user_id=user_id,
+        team_id=team.id,
+        is_admin=False
+    )
     db.add(new_member)
     db.commit()
     
-    return RedirectResponse("/teams/", status_code=303)
+    # Redirect to the team detail page
+    return RedirectResponse(f"/teams/{team_id}", status_code=303)
+
+@router.post("/{team_id}/leave")
+def leave_team(request: Request, team_id: int, db: Session = Depends(get_db)):
+    """Allow a user to leave a team"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login?next=/teams", status_code=303)
+        
+    # Get team
+    team = db.query(Team).filter_by(id=team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    # Can't leave if you're the owner
+    if team.owner_id == user_id:
+        return RedirectResponse(f"/teams/{team_id}?error=Team+owner+cannot+leave", status_code=303)
+    
+    # Find membership
+    membership = db.query(TeamMembership)\
+        .filter(TeamMembership.user_id == user_id, TeamMembership.team_id == team_id)\
+        .first()
+        
+    if not membership:
+        return RedirectResponse("/teams/?error=You+are+not+a+member+of+this+team", status_code=303)
+    
+    # Delete the team membership
+    db.delete(membership)
+    db.commit()
+    
+    return RedirectResponse("/teams/?message=Successfully+left+the+team", status_code=303)
+
+@router.post("/{team_id}/update")
+def update_team(
+    request: Request,
+    team_id: int, 
+    team_name: str = Form(...), 
+    is_public: bool = Form(False),
+    db: Session = Depends(get_db)
+):
+    """Update team details."""
+    team = db.query(Team).filter_by(id=team_id).first()
+    
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    # Check if user is admin
+    membership = db.query(TeamMembership).filter_by(
+        team_id=team.id,
+        is_admin=True
+    ).first()
+    
+    if not membership:
+        raise HTTPException(status_code=403, detail="You don't have permission to update this team")
+    
+    # Update team details
+    team.name = team_name
+    team.is_public = is_public
+    db.commit()
+    
+    return RedirectResponse(f"/teams/{team_id}", status_code=303)
 
 @router.get("/{team_id}", response_class=HTMLResponse)
 def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
@@ -82,6 +218,21 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    is_team_member = False
+    
+    if user_id:
+        user = db.query(User).get(user_id)
+        
+        # Check if user is a team member
+        team_membership = db.query(TeamMembership)\
+            .filter(TeamMembership.user_id == user_id, TeamMembership.team_id == team_id)\
+            .first()
+        
+        is_team_member = team_membership is not None
+    
     # Get team members with admin status
     memberships = db.query(TeamMembership).filter_by(team_id=team_id).all()
     team_members = []
@@ -90,6 +241,10 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
     for membership in memberships:
         member = db.query(User).filter_by(id=membership.user_id).first()
         if member:
+            # Check if current user is admin of this team
+            if user and user.id == membership.user_id and membership.is_admin:
+                is_user_admin = True
+                
             # Use joined_at if available, otherwise use placeholder
             joined_date = getattr(membership, 'joined_at', None) or datetime.now() - timedelta(days=random.randint(30, 180))
             if isinstance(joined_date, datetime):
@@ -105,21 +260,39 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
                 "joined": f"{month_name} {year}"
             })
     
+    # Also check if user is the owner
+    is_user_owner = user and team.owner_id == user.id
+    if is_user_owner:
+        is_user_admin = True  # Owner has admin privileges
+    
     # Get total points
     total_points = db.query(func.sum(QRCode.points)).filter(
         QRCode.redeemed_at_team == team_id
     ).scalar() or 0
     
-    # Calculate rank based on points
-    higher_teams = db.query(func.count(Team.id)).join(
-        QRCode, 
-        QRCode.redeemed_at_team == Team.id, 
-        isouter=True
-    ).group_by(Team.id).having(
-        func.sum(QRCode.points) > total_points
-    ).scalar() or 0
-    
-    team_rank = higher_teams + 1
+    # Calculate rank based on points - using a safer approach
+    try:
+        # First, get the aggregated points for all teams
+        team_points = db.query(
+            QRCode.redeemed_at_team, 
+            func.sum(QRCode.points).label('total')
+        ).filter(
+            QRCode.redeemed_at_team != None
+        ).group_by(QRCode.redeemed_at_team).all()
+        
+        # Sort them by points (descending)
+        sorted_teams = sorted(team_points, key=lambda x: x.total or 0, reverse=True)
+        
+        # Find our team's position
+        team_rank = 1
+        for idx, team_data in enumerate(sorted_teams):
+            if team_data.redeemed_at_team == team_id:
+                team_rank = idx + 1
+                break
+            
+    except Exception as e:
+        print(f"Error calculating team rank: {e}")
+        team_rank = 1  # Default to 1st place on error
     
     # Generate points data (with fallbacks for missing columns)
     points_this_month = 65  # Default value
@@ -205,37 +378,10 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
             "activities": activities,
             "performance": performance,
             "is_user_admin": is_user_admin,
+            "is_user_owner": is_user_owner,
+            "is_team_member": is_team_member,
             "days_ago": days_ago,
-            "founded_date": founded_date_str
+            "founded_date": founded_date_str,
+            "user": user  # Add user to the context
         }
     )
-
-@router.post("/{team_id}/update")
-def update_team(
-    request: Request,
-    team_id: int, 
-    team_name: str = Form(...), 
-    is_public: bool = Form(False),
-    db: Session = Depends(get_db)
-):
-    """Update team details."""
-    team = db.query(Team).filter_by(id=team_id).first()
-    
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-    
-    # Check if user is admin
-    membership = db.query(TeamMembership).filter_by(
-        team_id=team.id,
-        is_admin=True
-    ).first()
-    
-    if not membership:
-        raise HTTPException(status_code=403, detail="You don't have permission to update this team")
-    
-    # Update team details
-    team.name = team_name
-    team.is_public = is_public
-    db.commit()
-    
-    return RedirectResponse(f"/teams/{team_id}", status_code=303)
