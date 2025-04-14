@@ -2,6 +2,13 @@
 {% block content %}
 <div class="max-w-3xl mx-auto my-8">
   <div class="bg-white p-8 rounded-lg shadow-md">
+    <!-- Display messages if present -->
+    {% if request.query_params.message %}
+    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+      {{ request.query_params.message }}
+    </div>
+    {% endif %}
+    
     <div class="flex flex-col md:flex-row items-center md:items-start md:space-x-8">
       <!-- Profile Image -->
       <div class="mb-6 md:mb-0">
@@ -37,10 +44,9 @@
           <div class="border-b border-gray-200 pb-4">
             <h3 class="text-gray-700 font-medium mb-2">Change Password</h3>
             <p class="text-sm text-gray-600 mb-3">Update your password to keep your account secure.</p>
-            <button class="bg-irish-green text-white py-2 px-4 rounded-md hover:bg-opacity-90 transition" disabled>
+            <a href="/auth/change-password" class="inline-block bg-irish-green text-white py-2 px-4 rounded-md hover:bg-opacity-90 transition">
               Change Password
-              <span class="text-xs">(Coming Soon)</span>
-            </button>
+            </a>
           </div>
           
           <div class="pt-4">

@@ -5,13 +5,16 @@ from typing import Optional
 import secrets
 import os
 import uuid
+import re
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_302_FOUND
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from ..db import get_db
 from ..models import User
 from ..auth.oauth import authentik_oauth
 from ..templates_config import templates
+from ..security import verify_password, get_password_hash
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -33,12 +36,53 @@ async def login_post(
     db: Session = Depends(get_db)
 ):
     """Handle login form submission"""
-    # This is a placeholder - implement real login logic here
-    error = "This login method is not fully implemented yet"
-    return templates.TemplateResponse(
-        "auth/login.html", 
-        {"request": request, "error": error, "show_oauth": True, "oauth_provider_name": "Authentik"}
-    )
+    error = None
+    
+    # Look up the user by username or email
+    user = db.query(User).filter(
+        (User.username == username) | (User.email == username)
+    ).first()
+    
+    # Check if user exists and password is correct
+    if not user:
+        error = "Invalid username or email"
+    elif user.is_oauth_user and not user.hashed_password:
+        error = "This account uses OAuth for login. Please use the OAuth login option."
+    elif not verify_password(password, user.hashed_password):
+        error = "Invalid password"
+    elif not user.is_active:
+        error = "This account has been deactivated"
+    
+    # If there was an error, re-render the login page
+    if error:
+        return templates.TemplateResponse(
+            "auth/login.html", 
+            {
+                "request": request, 
+                "error": error, 
+                "show_oauth": True, 
+                "oauth_provider_name": "Authentik"
+            }
+        )
+    
+    # Update the last login timestamp
+    user.last_login = datetime.utcnow()
+    db.commit()
+    
+    # Set session data
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    request.session["is_authenticated"] = True
+    request.session["is_admin"] = user.is_admin
+    
+    # If remember me is checked, set session expiry to a longer time (30 days)
+    if remember:
+        # Session middleware handles this through cookies, so we just need to set the flag
+        request.session["remember_me"] = True
+    
+    # Redirect to dashboard or previously requested page
+    next_page = request.query_params.get("next", "/dashboard")
+    return RedirectResponse(next_page, status_code=HTTP_303_SEE_OTHER)
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request, error: Optional[str] = None):
@@ -206,3 +250,110 @@ async def profile_page(request: Request):
         "auth/profile.html", 
         {"request": request, "user": user}
     )
+
+@router.get("/change-password", response_class=HTMLResponse)
+async def change_password_page(request: Request, error: Optional[str] = None, message: Optional[str] = None):
+    """Change password page"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login?next=/auth/change-password", status_code=HTTP_303_SEE_OTHER)
+    
+    return templates.TemplateResponse(
+        "auth/change_password.html", 
+        {"request": request, "error": error, "message": message}
+    )
+
+@router.post("/change-password", response_class=HTMLResponse)
+async def change_password_post(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Handle change password form submission"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Validate form data
+    if new_password != confirm_password:
+        return templates.TemplateResponse(
+            "auth/change_password.html",
+            {"request": request, "error": "New passwords do not match"}
+        )
+    
+    # Get user from database
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Check if this is an OAuth user without a password
+    if user.is_oauth_user and not user.hashed_password:
+        return templates.TemplateResponse(
+            "auth/change_password.html",
+            {"request": request, "error": "OAuth users cannot change passwords this way"}
+        )
+    
+    # Verify current password
+    if not verify_password(current_password, user.hashed_password):
+        return templates.TemplateResponse(
+            "auth/change_password.html",
+            {"request": request, "error": "Current password is incorrect"}
+        )
+    
+    # Check if new password is the same as current password
+    if current_password == new_password:
+        return templates.TemplateResponse(
+            "auth/change_password.html",
+            {"request": request, "error": "New password must be different from your current password"}
+        )
+    
+    # Server-side password strength validation
+    password_validation_error = validate_password_strength(new_password)
+    if password_validation_error:
+        return templates.TemplateResponse(
+            "auth/change_password.html",
+            {"request": request, "error": password_validation_error}
+        )
+    
+    # Update password
+    user.hashed_password = get_password_hash(new_password)
+    db.commit()
+    
+    # Redirect to profile page with success message
+    return RedirectResponse(
+        "/auth/profile?message=Password+changed+successfully",
+        status_code=HTTP_303_SEE_OTHER
+    )
+
+def validate_password_strength(password: str) -> Optional[str]:
+    """
+    Validates password strength based on the following criteria:
+    - At least 8 characters long
+    - Contains at least one lowercase letter
+    - Contains at least one uppercase letter
+    - Contains at least one digit
+    - Contains at least one special character
+    
+    Returns error message if validation fails, None if password is valid
+    """
+    if len(password) < 8:
+        return "Password must be at least 8 characters long"
+    
+    if not re.search(r"[a-z]", password):
+        return "Password must contain at least one lowercase letter"
+    
+    if not re.search(r"[A-Z]", password):
+        return "Password must contain at least one uppercase letter"
+    
+    if not re.search(r"\d", password):
+        return "Password must contain at least one number"
+    
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return "Password must contain at least one special character"
+    
+    return None

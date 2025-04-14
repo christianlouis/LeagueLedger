@@ -73,13 +73,43 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
             }
         )
 
-    # Get all available teams
-    all_teams = db.query(Team).all()
+    # Get only teams the user is a member of, if logged in
+    user_teams = []
+    if user:
+        # Query teams where the user is a member using TeamMembership relation
+        user_teams = (
+            db.query(Team)
+            .join(TeamMembership, Team.id == TeamMembership.team_id)
+            .filter(TeamMembership.user_id == user.id)
+            .all()
+        )
+    
+    # If user is not logged in or has no teams, instruct them to log in or join teams
+    if not user:
+        return templates.TemplateResponse(
+            "error.html", 
+            {
+                "request": request,
+                "error_title": "Login Required",
+                "error_message": "You must be logged in to redeem QR codes. Please log in and try again.",
+                "user": None
+            }
+        )
+    elif not user_teams:
+        return templates.TemplateResponse(
+            "error.html", 
+            {
+                "request": request,
+                "error_title": "No Teams Available",
+                "error_message": "You are not a member of any teams. Please join or create a team before redeeming QR codes.",
+                "user": user
+            }
+        )
 
     return templates.TemplateResponse("redeem.html", {
         "request": request,
         "ticket": qr_code,  # Using the same template variable name for compatibility
-        "user_teams": all_teams,
+        "user_teams": user_teams,
         "has_achievement": bool(qr_code.achievement_name),
         "base_url": BASE_URL,
         "user": user  # Add user to the context
@@ -115,6 +145,16 @@ async def apply_code(
     user_id = request.session.get("user_id")
     if user_id:
         user = db.query(User).get(user_id)
+    else:
+        return templates.TemplateResponse(
+            "error.html", 
+            {
+                "request": request,
+                "error_title": "Login Required",
+                "error_message": "You must be logged in to redeem QR codes.",
+                "user": None
+            }
+        )
     
     # Get form data
     form_data = await request.form()
@@ -168,6 +208,7 @@ async def apply_code(
             }
         )
 
+    # Verify the team exists
     team = db.query(Team).filter_by(id=team_id).first()
     if not team:
         return templates.TemplateResponse(
@@ -176,6 +217,23 @@ async def apply_code(
                 "request": request,
                 "error_title": "Team Not Found",
                 "error_message": "The selected team could not be found.",
+                "user": user  # Add user to the context
+            }
+        )
+    
+    # Verify the user is a member of the selected team
+    is_team_member = db.query(TeamMembership).filter_by(
+        user_id=user.id, 
+        team_id=team.id
+    ).first() is not None
+    
+    if not is_team_member:
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "error_title": "Not a Team Member",
+                "error_message": "You can only redeem points for teams you are a member of.",
                 "user": user  # Add user to the context
             }
         )
