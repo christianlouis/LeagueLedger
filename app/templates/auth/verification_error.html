@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto my-8">
+  <div class="bg-white p-8 rounded-lg shadow-md">
+    <div class="text-center">
+      <i class="fas fa-exclamation-circle text-red-500 text-5xl mb-4"></i>
+      <h1 class="text-2xl font-bold text-red-600 mb-3">Verification Failed</h1>
+      
+      {% if error %}
+        <p class="text-gray-600 mb-6">{{ error }}</p>
+      {% else %}
+        <p class="text-gray-600 mb-6">We couldn't verify your email address with the provided link.</p>
+      {% endif %}
+      
+      <p class="text-gray-600 mb-6">If your verification link has expired, you can request a new one by logging in with your credentials.</p>
+      
+      <a href="/auth/login" class="inline-block bg-irish-green text-white py-2 px-6 rounded-md hover:bg-opacity-90 transition">
+        Return to Login
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

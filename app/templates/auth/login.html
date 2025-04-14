@@ -8,6 +8,17 @@
     {% if error %}
       <div class="mb-4 p-3 rounded bg-red-100 text-red-700">
         {{ error }}
+        
+        <!-- Display resend verification link if applicable -->
+        {% if unverified_user_id %}
+          <div class="mt-2 p-2 border-t border-red-200">
+            <p class="mb-2 text-sm">Didn't receive the verification email?</p>
+            <a href="/auth/resend-verification?user_id={{ unverified_user_id }}" 
+               class="text-irish-green hover:underline text-sm font-medium">
+              Resend verification email to {{ unverified_email }}
+            </a>
+          </div>
+        {% endif %}
       </div>
     {% endif %}
     
@@ -55,13 +66,16 @@
         <label for="remember" class="ml-2 block text-sm text-gray-700">Remember me</label>
       </div>
       
-      <div>
+      <div class="flex items-center justify-between">
         <button
           type="submit"
-          class="w-full bg-irish-green text-white py-2 px-4 rounded-md hover:bg-opacity-90 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-irish-green"
+          class="bg-irish-green text-white py-2 px-4 rounded-md hover:bg-opacity-90 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-irish-green"
         >
           Log In
         </button>
+        <a class="inline-block align-baseline font-bold text-sm text-irish-green hover:text-opacity-75" href="/auth/forgot-password">
+          Forgot Password?
+        </a>
       </div>
     </form>
     

@@ -34,7 +34,7 @@
           
           <div class="bg-cream-white p-4 rounded-md">
             <h3 class="font-semibold text-irish-green mb-1">Member Since</h3>
-            <p>{{ user.created_at.split(' ')[0] }}</p>
+            <p>{{ user.created_at.strftime('%Y-%m-%d') }}</p>
           </div>
         </div>
         

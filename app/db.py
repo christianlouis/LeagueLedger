@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
 
 # Get database connection details from environment variables with fallbacks
 DB_HOST = os.environ.get("DB_HOST", "localhost")
@@ -23,13 +23,13 @@ engine = create_engine(
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create base class for models
-Base = declarative_base()
+# Import Base from models to ensure we use the same instance
+from .models import Base
 
 def init_db():
     """Initialize the database with all tables."""
-    # Import all models to ensure they're loaded
-    from . import models
+    # No need to import models here as we're already importing Base from models
+    # This ensures all models are loaded because they're defined in the models module
     
     # Create all tables if they don't exist
     Base.metadata.create_all(bind=engine)
@@ -44,8 +44,11 @@ def migrate_schema():
         connection = engine.connect()
         inspector = inspect(engine)
         
+        # Check if tables exist first
+        tables = inspector.get_table_names()
+        
         # Check User table
-        if 'users' in inspector.get_table_names():
+        if 'users' in tables:
             columns = [col['name'] for col in inspector.get_columns('users')]
             
             # Add all missing columns for User table
@@ -68,9 +71,11 @@ def migrate_schema():
                         connection.commit()
                     except Exception as e:
                         print(f"Error adding column {col_name}: {e}")
+        else:
+            print("Users table doesn't exist yet, skipping User table migrations")
         
         # Check Team table
-        if 'teams' in inspector.get_table_names():
+        if 'teams' in tables:
             columns = [col['name'] for col in inspector.get_columns('teams')]
             if 'is_public' not in columns:
                 print("Adding is_public column to teams table")
@@ -87,18 +92,22 @@ def migrate_schema():
                 connection.execute(text(
                     "ALTER TABLE teams ADD COLUMN description TEXT"
                 ))
+        else:
+            print("Teams table doesn't exist yet, skipping Team table migrations")
         
         # Check TeamMembership table
-        if 'team_membership' in inspector.get_table_names():
+        if 'team_membership' in tables:
             columns = [col['name'] for col in inspector.get_columns('team_membership')]
             if 'joined_at' not in columns:
                 print("Adding joined_at column to team_membership table")
                 connection.execute(text(
                     "ALTER TABLE team_membership ADD COLUMN joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                 ))
+        else:
+            print("TeamMembership table doesn't exist yet, skipping TeamMembership table migrations")
         
         # Check QRCode table (formerly QRTicket)
-        if 'qr_codes' in inspector.get_table_names():
+        if 'qr_codes' in tables:
             columns = [col['name'] for col in inspector.get_columns('qr_codes')]
             if 'created_at' not in columns:
                 print("Adding created_at column to qr_codes table")
@@ -110,9 +119,11 @@ def migrate_schema():
                 connection.execute(text(
                     "ALTER TABLE qr_codes ADD COLUMN redeemed_at TIMESTAMP NULL"
                 ))
+        else:
+            print("QRCodes table doesn't exist yet, skipping QRCode table migrations")
         
         # Handle legacy QRTicket table migration if it exists
-        if 'qr_tickets' in inspector.get_table_names() and 'qr_codes' in inspector.get_table_names():
+        if 'qr_tickets' in tables and 'qr_codes' in tables:
             print("Migrating data from legacy qr_tickets table to qr_codes table")
             try:
                 # Check if migration has already been done
@@ -129,43 +140,124 @@ def migrate_schema():
             except Exception as e:
                 print(f"Error during qr_tickets migration: {e}")
         
-        # Create OAuthAccount table if it doesn't exist
-        if 'oauth_accounts' not in inspector.get_table_names():
-            print("Creating oauth_accounts table")
-            connection.execute(text("""
-                CREATE TABLE oauth_accounts (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id INT,
-                    provider VARCHAR(50),
-                    provider_user_id VARCHAR(255),
-                    access_token VARCHAR(255),
-                    expires_at TIMESTAMP NULL,
-                    refresh_token VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-            """))
-        
-        # Create TeamAchievement table if it doesn't exist
-        if 'team_achievements' not in inspector.get_table_names():
-            print("Creating team_achievements table")
-            connection.execute(text("""
-                CREATE TABLE team_achievements (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    team_id INT,
-                    name VARCHAR(255) NOT NULL,
-                    event_id INT,
-                    description TEXT,
-                    achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    qr_code_id INT,
-                    FOREIGN KEY (team_id) REFERENCES teams(id),
-                    FOREIGN KEY (event_id) REFERENCES events(id),
-                    FOREIGN KEY (qr_code_id) REFERENCES qr_codes(id)
-                )
-            """))
+        # Create tables that don't exist only if users table exists first
+        # This ensures we can properly create foreign keys
+        if 'users' in tables:
+            # Create OAuthAccount table if it doesn't exist
+            if 'oauth_accounts' not in tables:
+                print("Creating oauth_accounts table")
+                connection.execute(text("""
+                    CREATE TABLE oauth_accounts (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT,
+                        provider VARCHAR(50),
+                        provider_user_id VARCHAR(255),
+                        access_token VARCHAR(255),
+                        expires_at TIMESTAMP NULL,
+                        refresh_token VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id)
+                    )
+                """))
+                connection.commit()
+            
+            # Create teams table if it doesn't exist
+            if 'teams' not in tables:
+                print("Creating teams table")
+                connection.execute(text("""
+                    CREATE TABLE teams (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(100) UNIQUE NOT NULL,
+                        description TEXT,
+                        is_public BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        owner_id INT,
+                        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                """))
+                connection.commit()
+            
+            # Create team_members table if it doesn't exist and teams table exists
+            if 'team_members' not in tables and 'teams' in tables:
+                print("Creating team_members table")
+                connection.execute(text("""
+                    CREATE TABLE team_members (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        team_id INT NOT NULL,
+                        is_captain BOOLEAN DEFAULT FALSE,
+                        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+                    )
+                """))
+                connection.commit()
+                
+            # Create team_membership table if it doesn't exist and teams table exists
+            if 'team_membership' not in tables and 'teams' in tables:
+                print("Creating team_membership table")
+                connection.execute(text("""
+                    CREATE TABLE team_membership (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT,
+                        team_id INT,
+                        is_admin BOOLEAN DEFAULT FALSE,
+                        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        FOREIGN KEY (team_id) REFERENCES teams(id)
+                    )
+                """))
+                connection.commit()
+
+            # Create Event table if it doesn't exist
+            if 'events' not in tables:
+                print("Creating events table")
+                connection.execute(text("""
+                    CREATE TABLE events (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        description TEXT,
+                        location VARCHAR(200),
+                        event_date TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    )
+                """))
+                connection.commit()
+
+            # Create event_attendees table if it doesn't exist and events table exists
+            if 'event_attendees' not in tables and 'events' in tables:
+                print("Creating event_attendees table")
+                connection.execute(text("""
+                    CREATE TABLE event_attendees (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        event_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        check_in_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """))
+                connection.commit()
+
+            # Create user_points table if it doesn't exist
+            if 'user_points' not in tables:
+                print("Creating user_points table")
+                connection.execute(text("""
+                    CREATE TABLE user_points (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        points FLOAT NOT NULL DEFAULT 0,
+                        reason VARCHAR(200),
+                        awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """))
+                connection.commit()
         
         # Create QRSet table if it doesn't exist
-        if 'qr_sets' not in inspector.get_table_names():
+        if 'qr_sets' not in tables:
             print("Creating qr_sets table")
             connection.execute(text("""
                 CREATE TABLE qr_sets (
@@ -177,23 +269,8 @@ def migrate_schema():
                     FOREIGN KEY (created_by) REFERENCES users(id)
                 )
             """))
+            connection.commit()
         
-        # Create Event table if it doesn't exist
-        if 'events' not in inspector.get_table_names():
-            print("Creating events table")
-            connection.execute(text("""
-                CREATE TABLE events (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(100) NOT NULL,
-                    description TEXT,
-                    location VARCHAR(200),
-                    event_date TIMESTAMP NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                )
-            """))
-        
-        connection.commit()
         print("Schema migrations completed successfully")
     except Exception as e:
         print(f"Error during schema migration: {e}")

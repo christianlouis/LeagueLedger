@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from typing import Optional
@@ -8,13 +8,14 @@ import uuid
 import re
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_302_FOUND
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from ..db import get_db
 from ..models import User
 from ..auth.oauth import authentik_oauth
 from ..templates_config import templates
 from ..security import verify_password, get_password_hash
+from ..utils.mail import send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -52,15 +53,29 @@ async def login_post(
         error = "Invalid password"
     elif not user.is_active:
         error = "This account has been deactivated"
-    
-    # If there was an error, re-render the login page
-    if error:
+    elif not user.is_verified and not user.is_oauth_user:
+        # For unverified users, show special error message with option to resend verification
+        # Pass user ID in the template to enable resending verification email
         return templates.TemplateResponse(
             "auth/login.html", 
             {
                 "request": request, 
-                "error": error, 
+                "error": "Please verify your email address before logging in",
                 "show_oauth": True, 
+                "oauth_provider_name": "Authentik",
+                "unverified_user_id": user.id,
+                "unverified_email": user.email
+            }
+        )
+    
+    # If any error was detected, return to the login page with the error message
+    if error:
+        return templates.TemplateResponse(
+            "auth/login.html",
+            {
+                "request": request,
+                "error": error,
+                "show_oauth": True,
                 "oauth_provider_name": "Authentik"
             }
         )
@@ -95,6 +110,7 @@ async def register_page(request: Request, error: Optional[str] = None):
 @router.post("/register", response_class=HTMLResponse)
 async def register_post(
     request: Request,
+    background_tasks: BackgroundTasks,
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
@@ -102,18 +118,185 @@ async def register_post(
     db: Session = Depends(get_db)
 ):
     """Handle registration form submission"""
-    # This is a placeholder - implement real registration logic here
+    # Validate passwords match
     if password != confirm_password:
         return templates.TemplateResponse(
             "auth/register.html", 
             {"request": request, "error": "Passwords do not match"}
         )
+    
+    # Validate password strength
+    password_validation_error = validate_password_strength(password)
+    if password_validation_error:
+        return templates.TemplateResponse(
+            "auth/register.html",
+            {"request": request, "error": password_validation_error}
+        )
+    
+    # Check if username already exists
+    if db.query(User).filter(User.username == username).first():
+        return templates.TemplateResponse(
+            "auth/register.html", 
+            {"request": request, "error": "Username already taken"}
+        )
+    
+    # Check if email already exists
+    if db.query(User).filter(User.email == email).first():
+        return templates.TemplateResponse(
+            "auth/register.html", 
+            {"request": request, "error": "Email already registered"}
+        )
+    
+    try:
+        # Create the user with verification token
+        verification_token = secrets.token_urlsafe(32)
+        expiration = datetime.utcnow() + timedelta(hours=24)
+        
+        new_user = User(
+            username=username,
+            email=email,
+            hashed_password=get_password_hash(password),
+            is_verified=False,
+            verification_token=verification_token,
+            verification_token_expires_at=expiration,
+            last_verification_email_sent=datetime.utcnow()  # Add this line
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        # Send verification email
+        try:
+            from ..utils.mail import send_verification_email
+            await send_verification_email(
+                email=email,
+                username=username,
+                verification_token=verification_token,
+                background_tasks=background_tasks
+            )
+        except Exception as e:
+            print(f"Failed to send verification email: {str(e)}")
+            # We'll show success anyway, but log the error
+        
+        # Return success template
+        return templates.TemplateResponse(
+            "auth/registration_success.html", 
+            {"request": request, "email_verification_required": True}
+        )
+    except Exception as e:
+        print(f"Registration error: {str(e)}")
+        return templates.TemplateResponse(
+            "auth/register.html", 
+            {"request": request, "error": "An error occurred during registration"}
+        )
 
-    # Check username and email uniqueness, then create user
+@router.get("/verify-email", response_class=HTMLResponse)
+async def verify_email(
+    request: Request,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """Verify user email address with verification token"""
+    # Find user by verification token
+    user = db.query(User).filter(User.verification_token == token).first()
+    
+    # Check if token exists and hasn't expired
+    if not user or not user.verification_token_expires_at or user.verification_token_expires_at < datetime.utcnow():
+        return templates.TemplateResponse(
+            "auth/verification_error.html",
+            {"request": request, "error": "Invalid or expired verification link"}
+        )
+    
+    # Mark user as verified and clear verification token
+    user.is_verified = True
+    user.verification_token = None
+    user.verification_token_expires_at = None
+    db.commit()
+    
+    # Send welcome email in the background
+    try:
+        from ..utils.mail import send_welcome_email
+        background_tasks = BackgroundTasks()
+        background_tasks.add_task(
+            send_welcome_email,
+            email=user.email,
+            username=user.username
+        )
+    except Exception as e:
+        print(f"Failed to queue welcome email: {str(e)}")
+    
+    # Redirect to login page with success message
     return templates.TemplateResponse(
-        "auth/registration_success.html", 
-        {"request": request}
+        "auth/verification_success.html",
+        {"request": request, "username": user.username}
     )
+
+@router.get("/resend-verification", response_class=HTMLResponse)
+async def resend_verification(
+    request: Request,
+    user_id: int,
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Resend verification email with cooldown period"""
+    # Get the user
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        return RedirectResponse(
+            "/auth/login?error=User+not+found", 
+            status_code=HTTP_303_SEE_OTHER
+        )
+    
+    # Check if user is already verified
+    if user.is_verified:
+        return RedirectResponse(
+            "/auth/login?message=Your+account+is+already+verified.+Please+log+in.", 
+            status_code=HTTP_303_SEE_OTHER
+        )
+    
+    # Check cooldown period (1 hour)
+    if user.last_verification_email_sent and (datetime.utcnow() - user.last_verification_email_sent) < timedelta(hours=1):
+        # Calculate time remaining in cooldown
+        time_since_last_email = datetime.utcnow() - user.last_verification_email_sent
+        minutes_remaining = max(0, 60 - int(time_since_last_email.total_seconds() / 60))
+        
+        return RedirectResponse(
+            f"/auth/login?error=Verification+email+was+recently+sent.+Please+wait+{minutes_remaining}+minutes+before+requesting+another+one.", 
+            status_code=HTTP_303_SEE_OTHER
+        )
+    
+    # Generate new verification token
+    verification_token = secrets.token_urlsafe(32)
+    expiration = datetime.utcnow() + timedelta(hours=24)
+    
+    # Update user record
+    user.verification_token = verification_token
+    user.verification_token_expires_at = expiration
+    user.last_verification_email_sent = datetime.utcnow()
+    db.commit()
+    
+    # Send verification email
+    try:
+        from ..utils.mail import send_verification_email
+        await send_verification_email(
+            email=user.email,
+            username=user.username,
+            verification_token=verification_token,
+            background_tasks=background_tasks
+        )
+        
+        return RedirectResponse(
+            "/auth/login?message=Verification+email+has+been+resent.+Please+check+your+inbox.", 
+            status_code=HTTP_303_SEE_OTHER
+        )
+    except Exception as e:
+        print(f"Failed to send verification email: {str(e)}")
+        return RedirectResponse(
+            "/auth/login?error=Failed+to+send+verification+email.+Please+try+again+later.", 
+            status_code=HTTP_303_SEE_OTHER
+        )
 
 @router.get("/oauth-login")
 async def oauth_login(request: Request):
@@ -228,7 +411,7 @@ async def logout(request: Request):
     return RedirectResponse("/", status_code=HTTP_303_SEE_OTHER)
 
 @router.get("/profile", response_class=HTMLResponse)
-async def profile_page(request: Request):
+async def profile_page(request: Request, db: Session = Depends(get_db)):
     """User profile page"""
     # Get the user ID from the session
     user_id = request.session.get("user_id")
@@ -236,15 +419,13 @@ async def profile_page(request: Request):
     if not user_id:
         return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
     
-    # Mock user data - in a real app, you'd fetch this from the database
-    user = {
-        "id": user_id,
-        "username": request.session.get("username", "User"),
-        "email": "user@example.com",
-        "is_admin": request.session.get("is_admin", False),
-        "created_at": "2023-01-01 12:00:00",
-        "picture": None
-    }
+    # Fetch the actual user data from the database
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        # If user doesn't exist in the database but has a session, clear the session
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
     
     return templates.TemplateResponse(
         "auth/profile.html", 
@@ -327,6 +508,141 @@ async def change_password_post(
     # Redirect to profile page with success message
     return RedirectResponse(
         "/auth/profile?message=Password+changed+successfully",
+        status_code=HTTP_303_SEE_OTHER
+    )
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request, error: Optional[str] = None, message: Optional[str] = None):
+    """Forgot password page"""
+    return templates.TemplateResponse(
+        "auth/forgot_password.html",
+        {"request": request, "error": error, "message": message}
+    )
+
+@router.post("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_post(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    email: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Handle forgot password form submission"""
+    try:
+        # Find user by email
+        user = db.query(User).filter(User.email == email).first()
+        
+        # Always show success message even if email doesn't exist (security best practice)
+        if not user:
+            return templates.TemplateResponse(
+                "auth/forgot_password.html",
+                {
+                    "request": request,
+                    "message": "If your email is in our system, you will receive a password reset link shortly."
+                }
+            )
+        
+        # Generate reset token
+        reset_token = secrets.token_urlsafe(32)
+        user.reset_token = reset_token
+        user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=24)
+        db.commit()
+        
+        try:
+            # Send reset email
+            await send_password_reset_email(
+                email=user.email,
+                username=user.username,
+                reset_token=reset_token,
+                background_tasks=background_tasks,
+            )
+        except Exception as e:
+            print(f"Failed to send password reset email: {str(e)}")
+            # We don't show this error to the user for security reasons
+            # In a production app, you would log this error properly
+        
+        return templates.TemplateResponse(
+            "auth/forgot_password.html",
+            {
+                "request": request,
+                "message": "If your email is in our system, you will receive a password reset link shortly."
+            }
+        )
+    except Exception as e:
+        print(f"Password reset error: {str(e)}")
+        return templates.TemplateResponse(
+            "auth/forgot_password.html",
+            {
+                "request": request,
+                "error": "An error occurred. Please try again later."
+            }
+        )
+
+@router.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(
+    request: Request,
+    token: str,
+    error: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Reset password page"""
+    # Validate token
+    user = db.query(User).filter(User.reset_token == token).first()
+    
+    # Check if token exists and hasn't expired
+    if not user or not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+        return templates.TemplateResponse(
+            "auth/reset_password_error.html",
+            {"request": request, "error": "Invalid or expired reset token."}
+        )
+    
+    return templates.TemplateResponse(
+        "auth/reset_password.html",
+        {"request": request, "token": token, "error": error}
+    )
+
+@router.post("/reset-password", response_class=HTMLResponse)
+async def reset_password_post(
+    request: Request,
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Handle reset password form submission"""
+    # Validate token
+    user = db.query(User).filter(User.reset_token == token).first()
+    
+    # Check if token exists and hasn't expired
+    if not user or not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+        return templates.TemplateResponse(
+            "auth/reset_password_error.html",
+            {"request": request, "error": "Invalid or expired reset token."}
+        )
+    
+    # Validate passwords
+    if new_password != confirm_password:
+        return templates.TemplateResponse(
+            "auth/reset_password.html",
+            {"request": request, "token": token, "error": "Passwords do not match."}
+        )
+    
+    # Server-side password strength validation
+    password_validation_error = validate_password_strength(new_password)
+    if password_validation_error:
+        return templates.TemplateResponse(
+            "auth/reset_password.html",
+            {"request": request, "token": token, "error": password_validation_error}
+        )
+    
+    # Update password and clear reset token
+    user.hashed_password = get_password_hash(new_password)
+    user.reset_token = None
+    user.reset_token_expires_at = None  # Clear the token after use
+    db.commit()
+    
+    # Redirect to login page with success message
+    return RedirectResponse(
+        "/auth/login?message=Password+has+been+reset+successfully.+Please+login+with+your+new+password.",
         status_code=HTTP_303_SEE_OTHER
     )
 

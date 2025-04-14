@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
 
+# This Base should be the single source of truth
 Base = declarative_base()
 
 class User(Base):
@@ -18,6 +19,8 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
     verification_token = Column(String(255), nullable=True)
+    verification_token_expires_at = Column(DateTime, nullable=True)  # Added field for verification token expiration
+    last_verification_email_sent = Column(DateTime, nullable=True)  # Track when verification email was last sent
     reset_token = Column(String(255), nullable=True)
     reset_token_expires_at = Column(DateTime, nullable=True)
     last_login = Column(DateTime, nullable=True)
