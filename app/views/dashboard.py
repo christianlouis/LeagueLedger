@@ -92,6 +92,45 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)):
                 .limit(5)\
                 .all()
 
+        # Get user teams with enhanced data for display
+        user_teams_enhanced = []
+        
+        if user_teams:
+            # Get all team points to calculate ranks
+            team_points_query = db.query(
+                models.Team.id,
+                func.sum(models.QRCode.points).label('total_points')
+            ).outerjoin(
+                models.QRCode,
+                models.QRCode.redeemed_at_team == models.Team.id
+            ).group_by(models.Team.id)
+            
+            # Get results and sort by points in descending order
+            team_points = {row.id: row.total_points or 0 for row in team_points_query.all()}
+            ranked_teams = sorted(team_points.items(), key=lambda x: x[1], reverse=True)
+            
+            # Create a dictionary mapping team ID to rank
+            team_ranks = {team_id: i+1 for i, (team_id, _) in enumerate(ranked_teams)}
+            
+            # Enhance user teams with rank and points data
+            for team in user_teams:
+                points = team_points.get(team.id, 0)
+                rank = team_ranks.get(team.id, len(team_ranks) + 1)
+                
+                user_teams_enhanced.append({
+                    'id': team.id,
+                    'name': team.name,
+                    'points': points,
+                    'rank': rank,
+                    'description': getattr(team, 'description', None)
+                })
+        
+        # Find best rank if the user has any teams
+        best_rank = None
+        if user_teams_enhanced:
+            ranks = [team['rank'] for team in user_teams_enhanced]
+            best_rank = min(ranks) if ranks else None
+
         return templates.TemplateResponse(
             "dashboard/index.html", 
             {
@@ -101,7 +140,8 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)):
                 "total_points": total_points,
                 "event_count": event_count,
                 "recent_events": recent_events,
-                "user_teams": user_teams
+                "user_teams": user_teams_enhanced,
+                "best_rank": best_rank
             }
         )
     except Exception as e:
@@ -109,6 +149,15 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)}")
 
 @router.get("/scan", response_class=HTMLResponse)
-def scan_qr_page(request: Request):
+def scan_qr_page(request: Request, db: Session = Depends(get_db)):
     """Render the QR code scanning page."""
-    return templates.TemplateResponse("scan_qr.html", {"request": request})
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(models.User).get(user_id)
+    
+    return templates.TemplateResponse("scan_qr.html", {
+        "request": request,
+        "user": user  # Add user to the context
+    })

@@ -90,10 +90,10 @@ app.include_router(leaderboard.router, prefix="/leaderboard", tags=["Leaderboard
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(static.router, tags=["Static"])  # Include the static router
 
-# Add a direct route for /scan that redirects to /redeem/scan
+# Add a direct route for /scan that redirects to /dashboard/scan
 @app.get("/scan")
 async def scan_redirect():
-    return RedirectResponse("/redeem/scan", status_code=303)
+    return RedirectResponse("/dashboard/scan", status_code=303)
 
 # Add convenience routes for auth paths
 @app.get("/login")

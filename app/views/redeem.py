@@ -29,6 +29,12 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
     Display a page to let the user choose which team to apply points to.
     No login required.
     """
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+
     # Find the QR code record
     qr_code = db.query(QRCode).filter_by(code=code).first()
     
@@ -39,7 +45,8 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
             {
                 "request": request,
                 "error_title": "Invalid Code",
-                "error_message": "This QR code is invalid or does not exist."
+                "error_message": "This QR code is invalid or does not exist.",
+                "user": user  # Add user to the context
             }
         )
     
@@ -49,7 +56,8 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
             {
                 "request": request,
                 "error_title": "Code Already Used",
-                "error_message": "This QR code has already been redeemed."
+                "error_message": "This QR code has already been redeemed.",
+                "user": user  # Add user to the context
             }
         )
     
@@ -60,7 +68,8 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
             {
                 "request": request,
                 "error_title": "Expired Code",
-                "error_message": "This QR code has expired and can no longer be redeemed."
+                "error_message": "This QR code has expired and can no longer be redeemed.",
+                "user": user  # Add user to the context
             }
         )
 
@@ -72,16 +81,24 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
         "ticket": qr_code,  # Using the same template variable name for compatibility
         "user_teams": all_teams,
         "has_achievement": bool(qr_code.achievement_name),
-        "base_url": BASE_URL
+        "base_url": BASE_URL,
+        "user": user  # Add user to the context
     })
 
 @router.get("/scan", response_class=HTMLResponse)
-def scan_qr_code(request: Request):
+def scan_qr_code(request: Request, db: Session = Depends(get_db)):
     """
     Display the QR code scanner page
     """
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+        
     return templates.TemplateResponse("scan_qr.html", {
-        "request": request
+        "request": request,
+        "user": user  # Add user to the context
     })
 
 @router.post("/apply/{code}")
@@ -93,6 +110,12 @@ async def apply_code(
     """
     Apply the QR code to a selected team and award points and/or achievements
     """
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
     # Get form data
     form_data = await request.form()
     team_id = int(form_data.get("team_id", 0))
@@ -103,7 +126,8 @@ async def apply_code(
             {
                 "request": request,
                 "error_title": "Team Selection Required",
-                "error_message": "Please select a team to redeem this code."
+                "error_message": "Please select a team to redeem this code.",
+                "user": user  # Add user to the context
             }
         )
     
@@ -115,7 +139,8 @@ async def apply_code(
             {
                 "request": request,
                 "error_title": "Invalid Code",
-                "error_message": "This QR code is invalid or does not exist."
+                "error_message": "This QR code is invalid or does not exist.",
+                "user": user  # Add user to the context
             }
         )
     
@@ -126,7 +151,8 @@ async def apply_code(
             {
                 "request": request,
                 "error_title": "Code Already Used",
-                "error_message": "This QR code has already been redeemed."
+                "error_message": "This QR code has already been redeemed.",
+                "user": user  # Add user to the context
             }
         )
     
@@ -137,7 +163,8 @@ async def apply_code(
             {
                 "request": request,
                 "error_title": "Expired Code",
-                "error_message": "This QR code has expired and can no longer be redeemed."
+                "error_message": "This QR code has expired and can no longer be redeemed.",
+                "user": user  # Add user to the context
             }
         )
 
@@ -148,7 +175,8 @@ async def apply_code(
             {
                 "request": request,
                 "error_title": "Team Not Found",
-                "error_message": "The selected team could not be found."
+                "error_message": "The selected team could not be found.",
+                "user": user  # Add user to the context
             }
         )
 
@@ -180,7 +208,8 @@ async def apply_code(
             "achievement": qr_code.achievement_name if qr_code.achievement_name else None,
             "team": team,
             "event": qr_code.event if qr_code.event else None,
-            "base_url": BASE_URL
+            "base_url": BASE_URL,
+            "user": user  # Add user to the context
         }
     )
 
@@ -194,6 +223,12 @@ async def manual_code_entry(
     Handle manual code entry from the form.
     This redirects to the normal redeem flow after validating the code.
     """
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
     # Check if the code exists
     qr_code = db.query(QRCode).filter_by(code=code).first()
     
@@ -203,7 +238,8 @@ async def manual_code_entry(
             {
                 "request": request,
                 "error_title": "Invalid Code",
-                "error_message": "The code you entered is invalid or does not exist."
+                "error_message": "The code you entered is invalid or does not exist.",
+                "user": user  # Add user to the context
             }
         )
     
@@ -214,7 +250,8 @@ async def manual_code_entry(
             {
                 "request": request,
                 "error_title": "Code Already Used",
-                "error_message": "This code has already been redeemed."
+                "error_message": "This code has already been redeemed.",
+                "user": user  # Add user to the context
             }
         )
     

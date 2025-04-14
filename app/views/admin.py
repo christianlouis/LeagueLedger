@@ -67,12 +67,22 @@ def get_relationships(model_class: Type[Base]) -> Dict[str, str]:
     return relationships
 
 @router.get("/", response_class=HTMLResponse)
-async def admin_home(request: Request):
+async def admin_home(request: Request, db: Session = Depends(get_db)):
     """Admin dashboard home."""
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
+    # Check admin status
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+    
     model_list = [(key, name) for key, (_, name) in MODELS.items()]
     return templates.TemplateResponse(
         "admin/index.html", 
-        {"request": request, "models": model_list}
+        {"request": request, "models": model_list, "user": user}
     )
 
 @router.get("/{model_name}", response_class=HTMLResponse)
@@ -84,6 +94,16 @@ async def list_records(
     db: Session = Depends(get_db)
 ):
     """List records for a model with pagination."""
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
+    # Check admin status
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+    
     if model_name not in MODELS:
         raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
     
@@ -123,6 +143,7 @@ async def list_records(
             "per_page": per_page,
             "total_pages": total_pages,
             "total_records": total_records,
+            "user": user  # Add user to the context
         }
     )
 
@@ -133,6 +154,16 @@ async def create_record_form(
     db: Session = Depends(get_db)
 ):
     """Show form for creating a new record."""
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
+    # Check admin status
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+    
     if model_name not in MODELS:
         raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
     
@@ -162,7 +193,8 @@ async def create_record_form(
             "columns_info": columns_info,
             "record": None,  # No record for new form
             "foreign_key_options": foreign_key_options,
-            "is_new": True
+            "is_new": True,
+            "user": user  # Add user to the context
         }
     )
 
@@ -222,6 +254,16 @@ async def edit_record_form(
     db: Session = Depends(get_db)
 ):
     """Show form for editing an existing record."""
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
+    # Check admin status
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+    
     if model_name not in MODELS:
         raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
     
@@ -261,7 +303,8 @@ async def edit_record_form(
             "columns_info": columns_info,
             "record": record_data,
             "foreign_key_options": foreign_key_options,
-            "is_new": False
+            "is_new": False,
+            "user": user  # Add user to the context
         }
     )
 

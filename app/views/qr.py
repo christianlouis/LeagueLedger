@@ -20,7 +20,7 @@ from reportlab.lib.enums import TA_CENTER
 from pydantic import BaseModel
 
 from ..db import SessionLocal
-from ..models import QRCode, QRSet, Event
+from ..models import QRCode, QRSet, Event, User
 from ..templates_config import templates
 
 router = APIRouter()
@@ -55,6 +55,12 @@ class QRCodeRequest(BaseModel):
 @router.get("/", response_class=HTMLResponse)
 async def qr_dashboard(request: Request, db: Session = Depends(get_db)):
     """QR code management dashboard."""
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
     # Get all QR sets
     qr_sets = db.query(QRSet).all()
     
@@ -64,7 +70,8 @@ async def qr_dashboard(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("qr/dashboard.html", {
         "request": request,
         "qr_sets": qr_sets,
-        "events": events
+        "events": events,
+        "user": user  # Add user to the context
     })
 
 
@@ -94,6 +101,12 @@ async def create_qr_set(
 @router.get("/sets/{set_id}", response_class=HTMLResponse)
 async def view_qr_set(request: Request, set_id: int, db: Session = Depends(get_db)):
     """View details of a QR set."""
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
     qr_set = db.query(QRSet).filter(QRSet.id == set_id).first()
     if not qr_set:
         raise HTTPException(status_code=404, detail="QR Set not found")
@@ -105,7 +118,8 @@ async def view_qr_set(request: Request, set_id: int, db: Session = Depends(get_d
         "request": request,
         "qr_set": qr_set,
         "qr_codes": qr_codes,
-        "base_url": BASE_URL
+        "base_url": BASE_URL,
+        "user": user  # Add user to the context
     })
 
 
@@ -208,6 +222,12 @@ def generate_admin_qr(set_id: int, db: Session = Depends(get_db)):
 @router.get("/admin-link/{admin_code}", response_class=HTMLResponse)
 async def admin_link_page(request: Request, admin_code: str, db: Session = Depends(get_db)):
     """Page for linking QR sets to events via admin code."""
+    # Get user from session for navbar
+    user = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = db.query(User).get(user_id)
+    
     # Extract set_id from admin code
     try:
         set_id = int(admin_code.split("-")[1])
@@ -225,7 +245,8 @@ async def admin_link_page(request: Request, admin_code: str, db: Session = Depen
         "request": request,
         "qr_set": qr_set,
         "admin_code": admin_code,
-        "events": events
+        "events": events,
+        "user": user  # Add user to the context
     })
 
 

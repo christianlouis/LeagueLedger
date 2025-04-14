@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="space-y-6">
+<div class="max-w-4xl mx-auto space-y-6">
   <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
     <div>
       <h1 class="text-2xl md:text-3xl font-garamond font-bold text-irish-green">League Leaderboard</h1>
@@ -82,7 +82,9 @@
         {% for team in teams %}
           <tr class="{% if team.rank == 1 %}bg-golden-ale bg-opacity-10{% endif %} hover:bg-gray-50">
             <td class="py-3 px-4 font-bold">{{ team.rank }}</td>
-            <td class="py-3 px-4">{{ team.name }}</td>
+            <td class="py-3 px-4">
+              <a href="/teams/{{ team.id }}" class="text-irish-green hover:underline">{{ team.name }}</a>
+            </td>
             <td class="py-3 px-4 text-right font-bold">{{ team.points }}</td>
             <td class="py-3 px-4 text-center">
               {% if team.change > 0 %}
