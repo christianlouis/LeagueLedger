@@ -16,6 +16,7 @@ python-multipart>=0.0.6
 passlib>=1.7.4
 itsdangerous>=2.1.2
 bcrypt>=4.0.1
+PyJWT>=2.6.0  # Added for NetID token validation
 
 # OAuth client
 httpx-oauth>=0.10.0
