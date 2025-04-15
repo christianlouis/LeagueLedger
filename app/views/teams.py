@@ -18,6 +18,7 @@ from ..schemas import TeamCreate
 from ..templates_config import templates
 from ..utils.auth import get_current_user, is_team_captain
 from ..utils.mail import send_team_join_request_notification, send_join_request_response
+from ..auth.permissions import require_auth, require_team_captain
 
 router = APIRouter()
 
@@ -603,5 +604,63 @@ def team_detail(request: Request, team_id: int, db: Session = Depends(get_db)):
             "founded_date": founded_date_str,
             "user": user,  # Add user to the context
             "is_open": is_open  # Pass is_open to the template
+        }
+    )
+
+@router.get("/{team_id}/manage", response_class=HTMLResponse)
+@require_team_captain()
+async def manage_team(request: Request, team_id: int, db: Session = Depends(get_db)):
+    """
+    Team management page for captains.
+    This route is protected by the require_team_captain decorator which
+    automatically checks if the user is a captain of the team.
+    """
+    # Get team
+    team = db.query(Team).filter_by(id=team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    # Get pending join requests
+    join_requests = db.query(TeamJoinRequest).filter(
+        TeamJoinRequest.team_id == team_id,
+        TeamJoinRequest.status == "pending"
+    ).all()
+    
+    # Get requesters' info
+    pending_requests = []
+    for req in join_requests:
+        requester = db.query(User).filter(User.id == req.user_id).first()
+        if requester:
+            pending_requests.append({
+                "request": req,
+                "user": requester
+            })
+    
+    # Get team members
+    memberships = db.query(TeamMembership).filter_by(team_id=team_id).all()
+    team_members = []
+    
+    for membership in memberships:
+        member = db.query(User).filter_by(id=membership.user_id).first()
+        if member:
+            team_members.append({
+                "user": member,
+                "is_admin": membership.is_admin,
+                "is_captain": membership.is_captain
+            })
+    
+    # Get current user from session for template
+    current_user = None
+    if hasattr(request, "session") and request.session.get("user_id"):
+        current_user = db.query(User).filter_by(id=request.session.get("user_id")).first()
+    
+    return templates.TemplateResponse(
+        "teams/manage.html",
+        {
+            "request": request,
+            "team": team,
+            "pending_requests": pending_requests,
+            "team_members": team_members,
+            "user": current_user  # Use current user from session instead of request.user
         }
     )

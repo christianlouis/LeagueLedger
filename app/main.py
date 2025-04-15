@@ -7,16 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import os
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.authentication import AuthenticationMiddleware
 from dotenv import load_dotenv
 import logging
 import contextlib
 
-from .db import init_db, engine, get_db
+from .db import engine, get_db
 from . import models
 from .templates_config import templates
 from .views import qr, redeem, teams, admin, leaderboard, dashboard, static, pages, auth, convenience
-from .db_init import seed_db
-from .db_migrations import apply_migrations
+from .db_init import init_db
+from .auth.middleware import SessionAuthBackend, on_auth_error
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,8 +38,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add SessionMiddleware with a secure secret key
+# Get secret key for the session
 SECRET_KEY = os.getenv("SECRET_KEY", "a-very-secure-secret-key-for-development")
+
+# Important: Order of middleware matters!
+# First add AuthenticationMiddleware
+app.add_middleware(
+    AuthenticationMiddleware, 
+    backend=SessionAuthBackend(),
+    on_error=on_auth_error
+)
+
+# Then add SessionMiddleware (last added = first executed)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 # Initialize database on startup
@@ -49,19 +60,9 @@ async def startup_db_client():
         # Import models to ensure they're registered with Base before initialization
         from . import models
         
-        # Create all tables first
+        # Initialize database (applies migrations and seeds data)
         init_db()
-        logger.info("Base tables created successfully")
-        
-        # Apply migrations to add additional columns and constraints
-        with contextlib.suppress(Exception):
-            apply_migrations()
-            logger.info("Migrations applied successfully")
-        
-        # Seed the database with test data if needed
-        with contextlib.suppress(Exception):
-            seed_db()
-            logger.info("Database seeded successfully")
+        logger.info("Database initialized and migrated successfully")
             
     except Exception as e:
         logger.error(f"Database initialization error: {str(e)}")

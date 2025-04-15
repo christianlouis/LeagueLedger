@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, UniqueConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, UniqueConstraint, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
+from starlette.authentication import BaseUser
 
 # This Base should be the single source of truth
 Base = declarative_base()
 
-class User(Base):
+class User(Base, BaseUser):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
@@ -29,7 +30,14 @@ class User(Base):
     # OAuth fields
     is_oauth_user = Column(Boolean, default=False)
     oauth_id = Column(String(255), nullable=True)
-    oauth_provider = Column(String(50), nullable=True)
+    oauth_provider = Column(String(50), nullable=True)  # Primary OAuth provider
+    
+    # New field for multiple providers: store as JSON {provider_name: provider_user_id}
+    additional_oauth_providers = Column(JSON, nullable=True)  
+    
+    # Profile fields
+    first_name = Column(String(50), nullable=True)
+    last_name = Column(String(50), nullable=True)
     picture = Column(String(255), nullable=True)  # URL to profile picture
 
     # Relationships
@@ -37,6 +45,22 @@ class User(Base):
     points = relationship("UserPoints", back_populates="user")
     events_attended = relationship("EventAttendee", back_populates="user")
     owned_teams = relationship("Team", back_populates="owner")
+
+    # BaseUser interface implementation
+    @property
+    def is_authenticated(self) -> bool:
+        """Return True as this user is authenticated."""
+        return True
+        
+    @property
+    def display_name(self) -> str:
+        """Return the display name for this user."""
+        return self.username
+        
+    @property
+    def identity(self) -> str:
+        """Return the identity of this user."""
+        return str(self.id)
 
     def __repr__(self):
         return f"<User {self.username}>"

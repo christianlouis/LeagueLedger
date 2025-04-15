@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
 from .models import User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event
-from .db import SessionLocal
+from .db import SessionLocal, engine
+from .db_migrations import run_migrations
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -24,6 +25,14 @@ def table_has_column(engine, table_name, column_name):
         return False
     columns = [col['name'] for col in inspector.get_columns(table_name)]
     return column_name in columns
+
+def init_db():
+    """Initialize the database, applying migrations and seeding data."""
+    # First, run any needed migrations
+    run_migrations(engine)
+    
+    # Then proceed with seeding if needed
+    seed_db()
 
 def seed_db():
     """Seed the database with test data."""
@@ -288,4 +297,4 @@ def seed_db():
         db.close()
 
 if __name__ == "__main__":
-    seed_db()
+    init_db()

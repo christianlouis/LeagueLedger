@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import secrets
 import os
 import uuid
@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 from ..db import get_db
 from ..models import User
-from ..auth.oauth import authentik_oauth
+from ..auth.oauth import oauth_manager
 from ..templates_config import templates
 from ..security import verify_password, get_password_hash
 from ..utils.mail import send_password_reset_email
@@ -31,11 +31,18 @@ async def login_page(request: Request, error: Optional[str] = None, message: Opt
         if not message:
             message = "You are already logged in."
     
+    # Get available OAuth providers for the login screen
+    oauth_providers = oauth_manager.get_available_providers()
+    
     return templates.TemplateResponse(
         "auth/login.html", 
-        {"request": request, "error": error, "message": message, 
-         "show_oauth": True, "oauth_provider_name": "Authentik",
-         "user": user}  # Add user to context
+        {
+            "request": request, 
+            "error": error, 
+            "message": message,
+            "user": user,
+            "oauth_providers": oauth_providers
+        }
     )
 
 @router.post("/login", response_class=HTMLResponse)
@@ -71,8 +78,7 @@ async def login_post(
             {
                 "request": request, 
                 "error": "Please verify your email address before logging in",
-                "show_oauth": True, 
-                "oauth_provider_name": "Authentik",
+                "oauth_providers": oauth_manager.get_available_providers(),
                 "unverified_user_id": user.id,
                 "unverified_email": user.email
             }
@@ -85,8 +91,7 @@ async def login_post(
             {
                 "request": request,
                 "error": error,
-                "show_oauth": True,
-                "oauth_provider_name": "Authentik"
+                "oauth_providers": oauth_manager.get_available_providers()
             }
         )
     
@@ -317,21 +322,21 @@ async def resend_verification(
             status_code=HTTP_303_SEE_OTHER
         )
 
-@router.get("/oauth-login")
-async def oauth_login(request: Request):
-    """Start the OAuth login flow"""
+@router.get("/oauth-login/{provider_id}")
+async def oauth_login(request: Request, provider_id: str):
+    """Start the OAuth login flow for the specified provider"""
     # Generate the redirect URI
     base_url = str(request.base_url)
-    redirect_uri = f"{base_url}auth/oauth-callback"
+    redirect_uri = f"{base_url}auth/oauth-callback/{provider_id}"
     
-    # Request a login URL from the Authentik provider
+    # Request a login URL from the provider
     try:
         # Set a session ID to validate the callback
         if "session_id" not in request.session:
             request.session["session_id"] = str(uuid.uuid4())
             
-        # Get the authorization URL - make sure to await it
-        auth_url = await authentik_oauth.get_login_url(request, redirect_uri)
+        # Get the authorization URL
+        auth_url = await oauth_manager.get_login_url(request, provider_id, redirect_uri)
         
         # Redirect to the authorization URL
         return RedirectResponse(auth_url)
@@ -342,9 +347,16 @@ async def oauth_login(request: Request):
             status_code=HTTP_303_SEE_OTHER
         )
 
-@router.get("/oauth-callback")
-async def oauth_callback(request: Request, code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None, db: Session = Depends(get_db)):
-    """Handle the OAuth callback"""
+@router.get("/oauth-callback/{provider_id}")
+async def oauth_callback(
+    request: Request, 
+    provider_id: str,
+    code: Optional[str] = None, 
+    state: Optional[str] = None, 
+    error: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    """Handle the OAuth callback for the specified provider"""
     if error:
         return RedirectResponse(
             f"/auth/login?error=OAuth+login+failed:+{error}",
@@ -359,11 +371,11 @@ async def oauth_callback(request: Request, code: Optional[str] = None, state: Op
     
     # Generate the redirect URI that matches the one used in the initial request
     base_url = str(request.base_url)
-    redirect_uri = f"{base_url}auth/oauth-callback"
+    redirect_uri = f"{base_url}auth/oauth-callback/{provider_id}"
     
     try:
-        # Get user info from the provider
-        user_info = await authentik_oauth.get_user_info(request, redirect_uri, code)
+        # Get normalized user info from the provider
+        user_info = await oauth_manager.get_user_info(request, provider_id, redirect_uri, code)
         
         if not user_info:
             return RedirectResponse(
@@ -371,24 +383,43 @@ async def oauth_callback(request: Request, code: Optional[str] = None, state: Op
                 status_code=HTTP_303_SEE_OTHER
             )
         
-        # Extract user details from OAuth info
-        sub = user_info.get("sub", "")
-        email = user_info.get("email", "")
-        name = user_info.get("preferred_username", "") or user_info.get("name", "") or email.split("@")[0]
-        picture = user_info.get("picture", None)
+        # Extract user details from the normalized OAuth info
+        provider_user_id = user_info.get("id")
+        email = user_info.get("email")
+        name = user_info.get("name") or (email.split("@")[0] if email else f"user_{provider_id}")
+        first_name = user_info.get("first_name")
+        last_name = user_info.get("last_name")
+        picture = user_info.get("picture")
         
-        # Check if the user already exists
+        if not email:
+            return RedirectResponse(
+                "/auth/login?error=Email+address+not+provided+by+the+OAuth+provider", 
+                status_code=HTTP_303_SEE_OTHER
+            )
+        
+        # Check if the user already exists with this email
         user = db.query(User).filter(User.email == email).first()
         
         if not user:
-            print(f"Creating new user with email {email} and username {name}")
+            # Set username to be unique if it already exists
+            username = name
+            base_username = username
+            counter = 1
+            
+            # Check if username already exists
+            while db.query(User).filter(User.username == username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
             # Create a new user
             user = User(
-                username=name,
+                username=username,
                 email=email,
-                oauth_id=sub,
+                oauth_id=provider_user_id,
                 is_oauth_user=True,
-                oauth_provider="authentik",
+                oauth_provider=provider_id,
+                first_name=first_name,
+                last_name=last_name,
                 picture=picture,
                 is_verified=True  # OAuth users are considered verified
             )
@@ -399,13 +430,27 @@ async def oauth_callback(request: Request, code: Optional[str] = None, state: Op
             # Update existing user's OAuth information
             if not user.is_oauth_user:
                 user.is_oauth_user = True
-                user.oauth_id = sub
-                user.oauth_provider = "authentik"
+                user.oauth_id = provider_user_id
                 
-            # Update profile picture if available
+            # If user has a different OAuth provider, add this one as additional
+            if user.oauth_provider and user.oauth_provider != provider_id:
+                if not user.additional_oauth_providers:
+                    user.additional_oauth_providers = {}
+                user.additional_oauth_providers[provider_id] = provider_user_id
+            else:
+                user.oauth_provider = provider_id
+                
+            # Update profile info if not already set
+            if first_name and not user.first_name:
+                user.first_name = first_name
+            if last_name and not user.last_name:
+                user.last_name = last_name
             if picture and not user.picture:
                 user.picture = picture
                 
+            # Update last login time
+            user.last_login = datetime.utcnow()
+            
             db.commit()
         
         # Set session data
@@ -413,8 +458,11 @@ async def oauth_callback(request: Request, code: Optional[str] = None, state: Op
         request.session["username"] = user.username
         request.session["is_authenticated"] = True
         request.session["is_admin"] = user.is_admin
+        request.session["oauth_provider"] = provider_id  # Store the provider for possible UI customization
         
-        return RedirectResponse("/dashboard", status_code=HTTP_303_SEE_OTHER)
+        # Redirect to dashboard or the requested next page
+        next_page = request.query_params.get("next", "/dashboard")
+        return RedirectResponse(next_page, status_code=HTTP_303_SEE_OTHER)
         
     except Exception as e:
         print(f"OAuth callback error: {str(e)}")
@@ -422,6 +470,36 @@ async def oauth_callback(request: Request, code: Optional[str] = None, state: Op
             f"/auth/login?error=OAuth+login+failed:+{str(e)}", 
             status_code=HTTP_303_SEE_OTHER
         )
+
+# Legacy route for backward compatibility
+@router.get("/oauth-login")
+async def legacy_oauth_login(request: Request):
+    """Redirect to Authentik OAuth login for backward compatibility"""
+    return RedirectResponse("/auth/oauth-login/authentik", status_code=HTTP_302_FOUND)
+
+@router.get("/oauth-callback")
+async def legacy_oauth_callback(
+    request: Request, 
+    code: Optional[str] = None, 
+    state: Optional[str] = None, 
+    error: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    """Redirect to Authentik OAuth callback handler for backward compatibility"""
+    params = []
+    if code:
+        params.append(f"code={code}")
+    if state:
+        params.append(f"state={state}")
+    if error:
+        params.append(f"error={error}")
+    
+    query_string = "&".join(params)
+    redirect_url = f"/auth/oauth-callback/authentik"
+    if query_string:
+        redirect_url = f"{redirect_url}?{query_string}"
+    
+    return RedirectResponse(redirect_url, status_code=HTTP_302_FOUND)
 
 @router.get("/logout")
 async def logout(request: Request):

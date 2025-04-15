@@ -39,3 +39,6 @@ Pillow>=9.0.0
 # PDF generation for QR code sheets
 reportlab>=3.6.12
 babel>=2.12.1
+
+# JSON handling for additional OAuth providers storage
+simplejson>=3.19.2
