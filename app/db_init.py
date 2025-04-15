@@ -28,9 +28,11 @@ def table_has_column(engine, table_name, column_name):
 
 def init_db():
     """Initialize the database, applying migrations and seeding data."""
-    # First, run any needed migrations
+    # First, create all tables if they don't exist
+    from .models import Base
+    Base.metadata.create_all(bind=engine)
+    # Then, run any needed migrations
     run_migrations(engine)
-    
     # Then proceed with seeding if needed
     seed_db()
 
