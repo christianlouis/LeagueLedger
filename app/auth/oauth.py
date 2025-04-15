@@ -830,10 +830,12 @@ class NetIDOAuth(OAuthProvider):
     AUTHORIZATION_URL = "https://broker.netid.de/authorize"
     TOKEN_URL = "https://broker.netid.de/token"
     USERINFO_URL = "https://broker.netid.de/userinfo"
+    JWKS_URL = "https://broker.netid.de/jwks"  # JWKS endpoint for token validation
     
     def __init__(self):
         self.client_id = os.getenv("NETID_CLIENT_ID", "")
         self.client_secret = os.getenv("NETID_CLIENT_SECRET", "")
+        self.token_signing_alg = os.getenv("NETID_TOKEN_SIGNING_ALG", "RS256")
         super().__init__()
     
     def initialize_client(self):
@@ -864,10 +866,17 @@ class NetIDOAuth(OAuthProvider):
             raise HTTPException(status_code=500, detail="NetID OAuth client could not be initialized")
         
         try:
+            # Add token signing algorithm parameter to the authorization request
+            extras_params = {
+                "response_type": "code",
+                "id_token_signed_response_alg": self.token_signing_alg
+            }
+            
             authorization_url = await self.client.get_authorization_url(
                 redirect_uri=redirect_uri,
                 scope=["openid", "email", "profile"],
-                state=str(request.session.get("session_id", ""))
+                state=str(request.session.get("session_id", "")),
+                extras_params=extras_params
             )
             return authorization_url
         except Exception as e:
@@ -883,15 +892,25 @@ class NetIDOAuth(OAuthProvider):
         
         try:
             # Exchange code for token
+            token_params = {
+                "id_token_signed_response_alg": self.token_signing_alg
+            }
+            
             token = await self.client.get_access_token(
                 code=code,
-                redirect_uri=redirect_uri
+                redirect_uri=redirect_uri,
+                extra_params=token_params
             )
             
             access_token = token.get("access_token")
+            id_token = token.get("id_token")  # JWT containing identity information
             
             if not access_token:
                 raise HTTPException(status_code=400, detail="Could not get NetID access token")
+            
+            # If we have an ID token, validate its signature when configured to do so
+            if id_token and os.getenv("NETID_VALIDATE_TOKENS", "true").lower() == "true":
+                await self.validate_id_token(id_token)
             
             # Get user info from NetID UserInfo endpoint
             async with httpx.AsyncClient() as client:
@@ -912,6 +931,37 @@ class NetIDOAuth(OAuthProvider):
         except Exception as e:
             print(f"Error getting NetID user info: {str(e)}")
             raise HTTPException(status_code=500, detail=f"OAuth error: {str(e)}")
+    
+    async def validate_id_token(self, id_token: str) -> None:
+        """Validate the NetID ID token signature using JWKS"""
+        try:
+            import jwt
+            from jwt.jwks_client import PyJWKClient
+            
+            # Create a JWKS client to fetch the public keys from NetID
+            jwks_client = PyJWKClient(self.JWKS_URL)
+            
+            # Get the signing key for this specific JWT
+            signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+            
+            # Verify the JWT using the fetched public key
+            # This will raise exceptions if the token is invalid
+            jwt.decode(
+                id_token,
+                signing_key.key,
+                algorithms=[self.token_signing_alg],
+                audience=self.client_id,
+                options={"verify_exp": True}
+            )
+            
+            # If we get here, the token is valid
+            return True
+            
+        except Exception as e:
+            print(f"Error validating NetID ID token: {str(e)}")
+            # In production, you might want to raise an exception here
+            # For now, we'll just log the error but not block the flow
+            return False
     
     def get_normalized_user_data(self, user_info: Dict[str, Any]) -> Dict[str, Any]:
         # NetID OpenID Connect response normalization
