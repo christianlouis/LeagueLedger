@@ -28,15 +28,18 @@ services:
       db:
         condition: service_healthy
     environment:
+      # Database configuration
       DB_HOST: "db"
       DB_PORT: "3306"
       DB_NAME: "pubquiz_db"
       DB_USER: "pubquiz_user"
       DB_PASS: "pubquiz_pass"
       PYTHONUNBUFFERED: "1"
-      # Use environment variable from .env instead of hard-coding
+      
+      # Base URL
       LEAGUELEDGER_BASE_URL: ${LEAGUELEDGER_BASE_URL:-http://localhost:8000}
-      # Email configuration for Mailhog
+      
+      # Email configuration for Mailpit
       MAIL_USERNAME: ""
       MAIL_PASSWORD: ""
       MAIL_FROM: "noreply@leagueledger.net"
@@ -47,6 +50,37 @@ services:
       MAIL_SSL_TLS: "False"
       MAIL_USE_CREDENTIALS: "False"
       MAIL_VALIDATE_CERTS: "False"
+      
+      # OAuth configuration - read from .env file
+      # Authentik
+      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID:-}
+      AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET:-}
+      AUTHENTIK_CONFIG_URL: ${AUTHENTIK_CONFIG_URL:-}
+      
+      # Google OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      
+      # GitHub OAuth
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      
+      # Facebook OAuth
+      FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
+      FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
+      
+      # Microsoft OAuth
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT: ${MICROSOFT_TENANT:-common}
+      
+      # Discord OAuth
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      
+      # LinkedIn OAuth
+      LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
+      LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
     command: uvicorn app.main:app --host 0.0.0.0 --reload
     ports:
       - "8000:8000"

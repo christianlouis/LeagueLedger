@@ -1,0 +1,123 @@
+site_name: LeagueLedger Documentation
+site_description: Documentation for LeagueLedger - Team Management and Points Tracking System
+site_author: LeagueLedger Team
+site_url: https://leagueledger.readthedocs.io
+
+# Repository
+repo_name: LeagueLedger
+repo_url: https://github.com/yourusername/leagueledger
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2025 LeagueLedger Team
+
+# Configuration
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: green
+      accent: green
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: green
+      accent: green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  favicon: assets/favicon.ico
+  icon:
+    logo: material/chart-areaspline
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - footnotes
+  - toc:
+      permalink: true
+
+# Plugins
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [app]
+          options:
+            show_source: true
+
+# Extra
+extra:
+  version:
+    provider: mike
+    default: latest
+  social:
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/yourusername
+    - icon: fontawesome/brands/github
+      link: https://github.com/yourusername/leagueledger
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Configuration: getting-started/configuration.md
+    - Quick Start: getting-started/quick-start.md
+  - User Guide:
+    - Overview: user-guide/overview.md
+    - User Accounts: user-guide/user-accounts.md
+    - Teams: user-guide/teams.md
+    - QR Codes: user-guide/qr-codes.md
+    - Points & Achievements: user-guide/points-and-achievements.md
+    - Leaderboard: user-guide/leaderboard.md
+    - Events: user-guide/events.md
+  - Administration:
+    - Admin Panel: administration/admin-panel.md
+    - User Management: administration/user-management.md
+    - Team Management: administration/team-management.md
+    - QR Code Management: administration/qr-code-management.md
+    - Event Management: administration/event-management.md
+  - Development:
+    - Architecture: development/architecture.md
+    - API Reference: development/api-reference.md
+    - Database Schema: development/database-schema.md
+    - Frontend Development: development/frontend-dev.md
+    - Backend Development: development/backend-dev.md
+    - Testing: development/testing.md
+  - Deployment:
+    - Docker Deployment: deployment/docker.md
+    - Production Setup: deployment/production.md
+    - Scaling: deployment/scaling.md
+    - Backup & Recovery: deployment/backup-recovery.md
+  - Integrations:
+    - Social Login: integrations/social-login.md
+    - Email Service: integrations/email-service.md
+  - FAQ: faq.md
+  - Changelog: changelog.md
+  - Contributing: contributing.md

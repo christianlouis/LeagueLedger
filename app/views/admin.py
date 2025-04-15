@@ -16,6 +16,7 @@ from ..models import (
     OAuthAccount, TeamJoinRequest, EventAttendee, UserPoints
 )
 from ..templates_config import templates
+from ..auth.permissions import require_admin
 
 router = APIRouter()
 
@@ -74,25 +75,18 @@ def get_relationships(model_class: Type[Base]) -> Dict[str, str]:
     return relationships
 
 @router.get("/", response_class=HTMLResponse)
+@require_admin(redirect_url="/auth/login?next=/admin/")
 async def admin_home(request: Request, db: Session = Depends(get_db)):
     """Admin dashboard home."""
-    # Get user from session for navbar
-    user = None
-    user_id = request.session.get("user_id")
-    if user_id:
-        user = db.query(User).get(user_id)
-    
-    # Check admin status
-    if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
-    
+    # Since we're using Starlette's authentication, the user is now available in request.user
     model_list = [(key, name) for key, (_, name) in MODELS.items()]
     return templates.TemplateResponse(
         "admin/index.html", 
-        {"request": request, "models": model_list, "user": user}
+        {"request": request, "models": model_list, "user": request.user}
     )
 
 @router.get("/{model_name}", response_class=HTMLResponse)
+@require_admin(redirect_url="/auth/login")
 async def list_records(
     request: Request, 
     model_name: str, 
@@ -101,16 +95,6 @@ async def list_records(
     db: Session = Depends(get_db)
 ):
     """List records for a model with pagination."""
-    # Get user from session for navbar
-    user = None
-    user_id = request.session.get("user_id")
-    if user_id:
-        user = db.query(User).get(user_id)
-    
-    # Check admin status
-    if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
-    
     if model_name not in MODELS:
         raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
     
@@ -150,27 +134,18 @@ async def list_records(
             "per_page": per_page,
             "total_pages": total_pages,
             "total_records": total_records,
-            "user": user  # Add user to the context
+            "user": request.user  # Add user to the context
         }
     )
 
 @router.get("/{model_name}/new", response_class=HTMLResponse)
+@require_admin(redirect_url="/auth/login")
 async def create_record_form(
     request: Request, 
     model_name: str,
     db: Session = Depends(get_db)
 ):
     """Show form for creating a new record."""
-    # Get user from session for navbar
-    user = None
-    user_id = request.session.get("user_id")
-    if user_id:
-        user = db.query(User).get(user_id)
-    
-    # Check admin status
-    if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
-    
     if model_name not in MODELS:
         raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
     
@@ -201,11 +176,12 @@ async def create_record_form(
             "record": None,  # No record for new form
             "foreign_key_options": foreign_key_options,
             "is_new": True,
-            "user": user  # Add user to the context
+            "user": request.user  # Use request.user from Starlette authentication
         }
     )
 
 @router.post("/{model_name}/new")
+@require_admin(redirect_url="/auth/login")
 async def create_record(
     request: Request,
     model_name: str,
@@ -254,6 +230,7 @@ async def create_record(
     return RedirectResponse(f"/admin/{model_name}", status_code=303)
 
 @router.get("/{model_name}/{record_id}", response_class=HTMLResponse)
+@require_admin(redirect_url="/auth/login")
 async def edit_record_form(
     request: Request, 
     model_name: str,
@@ -261,16 +238,6 @@ async def edit_record_form(
     db: Session = Depends(get_db)
 ):
     """Show form for editing an existing record."""
-    # Get user from session for navbar
-    user = None
-    user_id = request.session.get("user_id")
-    if user_id:
-        user = db.query(User).get(user_id)
-    
-    # Check admin status
-    if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
-    
     if model_name not in MODELS:
         raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
     
@@ -311,11 +278,12 @@ async def edit_record_form(
             "record": record_data,
             "foreign_key_options": foreign_key_options,
             "is_new": False,
-            "user": user  # Add user to the context
+            "user": request.user  # Use request.user from Starlette authentication
         }
     )
 
 @router.post("/{model_name}/{record_id}")
+@require_admin(redirect_url="/auth/login")
 async def update_record(
     request: Request,
     model_name: str,
@@ -364,6 +332,7 @@ async def update_record(
     return RedirectResponse(f"/admin/{model_name}", status_code=303)
 
 @router.get("/{model_name}/{record_id}/delete")
+@require_admin(redirect_url="/auth/login")
 async def delete_record(
     request: Request,
     model_name: str,
