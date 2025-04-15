@@ -891,15 +891,10 @@ class NetIDOAuth(OAuthProvider):
             raise HTTPException(status_code=500, detail="NetID OAuth client could not be initialized")
         
         try:
-            # Exchange code for token
-            token_params = {
-                "id_token_signed_response_alg": self.token_signing_alg
-            }
-            
+            # Exchange code for token (do not use extra_params)
             token = await self.client.get_access_token(
                 code=code,
-                redirect_uri=redirect_uri,
-                extra_params=token_params
+                redirect_uri=redirect_uri
             )
             
             access_token = token.get("access_token")
