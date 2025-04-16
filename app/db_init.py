@@ -9,7 +9,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
-from .models import User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event
+from .models import User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event, SystemSettings
 from .db import SessionLocal, engine
 from .db_migrations import run_migrations
 
@@ -35,6 +35,25 @@ def init_db():
     run_migrations(engine)
     # Then proceed with seeding if needed
     seed_db()
+    # Initialize system settings if needed
+    init_system_settings()
+
+def init_system_settings():
+    """Initialize the system settings table if it doesn't exist."""
+    db = SessionLocal()
+    try:
+        # Check if there's already a system settings record
+        settings = db.query(SystemSettings).first()
+        if not settings:
+            # Create initial system settings with setup_completed = False
+            settings = SystemSettings(setup_completed=False)
+            db.add(settings)
+            db.commit()
+            print("System settings initialized.")
+    except Exception as e:
+        print(f"Error initializing system settings: {e}")
+    finally:
+        db.close()
 
 def seed_db():
     """Seed the database with test data."""

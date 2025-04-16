@@ -15,7 +15,7 @@ import contextlib
 from .db import engine, get_db
 from . import models
 from .templates_config import templates
-from .views import qr, redeem, teams, admin, leaderboard, dashboard, static, pages, auth, convenience
+from .views import qr, redeem, teams, admin, leaderboard, dashboard, static, pages, auth, convenience, setup
 from .db_init import init_db
 from .auth.middleware import SessionAuthBackend, on_auth_error
 
@@ -125,6 +125,7 @@ async def not_found_exception_handler(request: Request, exc):
     )
 
 # Routers
+app.include_router(setup.router, tags=["Setup"])  # Setup router for initial admin setup
 app.include_router(pages.router, tags=["Pages"])  # Pages router for index and static pages
 app.include_router(auth.router, prefix="/auth", tags=["auth"])  # Include the auth router
 app.include_router(qr.router, prefix="/qr", tags=["QR"])
