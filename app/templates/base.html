@@ -78,7 +78,7 @@
                                 <i class="fas fa-chevron-down text-xs"></i>
                             </button>
                             <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                                <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <a href="/auth/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <i class="fas fa-user mr-2"></i> Profile
                                 </a>
                                 <a href="/dashboard" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -90,13 +90,13 @@
                                     </a>
                                 {% endif %}
                                 <div class="border-t border-gray-100 my-1"></div>
-                                <a href="/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <a href="/auth/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <i class="fas fa-sign-out-alt mr-2"></i> Logout
                                 </a>
                             </div>
                         </div>
                     {% else %}
-                        <a href="/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition">Sign In</a>
+                        <a href="/auth/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition">Sign In</a>
                     {% endif %}
                 </div>
                 
@@ -116,14 +116,14 @@
                     <a href="/leaderboard" class="hover:text-golden-ale transition py-2">Leaderboard</a>
                     <a href="/dashboard/scan" class="hover:text-golden-ale transition py-2">Scan QR Code</a>
                     {% if user %}
-                        <a href="/profile" class="hover:text-golden-ale transition py-2">Profile</a>
+                        <a href="/auth/profile" class="hover:text-golden-ale transition py-2">Profile</a>
                         <a href="/dashboard" class="hover:text-golden-ale transition py-2">Dashboard</a>
                         {% if user.is_admin %}
                             <a href="/admin" class="hover:text-golden-ale transition py-2">Admin</a>
                         {% endif %}
-                        <a href="/logout" class="hover:text-golden-ale transition py-2">Logout</a>
+                        <a href="/auth/logout" class="hover:text-golden-ale transition py-2">Logout</a>
                     {% else %}
-                        <a href="/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition text-center">Sign In</a>
+                        <a href="/auth/login" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition text-center">Sign In</a>
                     {% endif %}
                 </div>
             </div>
@@ -161,9 +161,9 @@
                     <div>
                         <h3 class="text-golden-ale font-bold mb-4">Account</h3>
                         <ul class="space-y-2">
-                            <li><a href="/login" class="hover:text-golden-ale transition">Sign In</a></li>
+                            <li><a href="/auth/login" class="hover:text-golden-ale transition">Sign In</a></li>
                             <li><a href="/register" class="hover:text-golden-ale transition">Register</a></li>
-                            <li><a href="/profile" class="hover:text-golden-ale transition">Profile</a></li>
+                            <li><a href="/auth/profile" class="hover:text-golden-ale transition">Profile</a></li>
                             <li><a href="/dashboard" class="hover:text-golden-ale transition">Dashboard</a></li>
                         </ul>
                     </div>
