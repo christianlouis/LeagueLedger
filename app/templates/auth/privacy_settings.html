@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto my-8">
+  <div class="bg-white p-8 rounded-lg shadow-md">
+    <h1 class="text-2xl font-bold text-irish-green mb-6">Privacy Settings</h1>
+
+    <!-- Display messages if present -->
+    {% if request.query_params.message %}
+    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+      {{ request.query_params.message }}
+    </div>
+    {% endif %}
+    
+    <!-- Display errors if present -->
+    {% if error %}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <p class="text-gray-600 mb-6">
+      Control who can see different parts of your profile information. Your information can be visible to everyone, 
+      only members of your teams, or kept private (visible only to you and admins).
+    </p>
+
+    <form method="post" action="/auth/privacy-settings">
+      <div class="space-y-6">
+        <!-- Email Visibility -->
+        <div class="border-b pb-4">
+          <h3 class="font-medium text-gray-800 mb-3">Email Address</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for option in privacy_options %}
+            <label class="flex items-center p-4 border rounded-lg {% if privacy_settings.email == option.value %}bg-green-50 border-irish-green{% endif %}">
+              <input type="radio" name="email_visibility" value="{{ option.value }}" 
+                 {% if privacy_settings.email == option.value %}checked{% endif %} 
+                 class="mr-2 text-irish-green focus:ring-irish-green">
+              <div>
+                <span class="font-medium block text-sm">{{ option.label }}</span>
+                <span class="text-xs text-gray-500">{{ option.description }}</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Full Name Visibility -->
+        <div class="border-b pb-4">
+          <h3 class="font-medium text-gray-800 mb-3">Full Name</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for option in privacy_options %}
+            <label class="flex items-center p-4 border rounded-lg {% if privacy_settings.full_name == option.value %}bg-green-50 border-irish-green{% endif %}">
+              <input type="radio" name="full_name_visibility" value="{{ option.value }}" 
+                 {% if privacy_settings.full_name == option.value %}checked{% endif %} 
+                 class="mr-2 text-irish-green focus:ring-irish-green">
+              <div>
+                <span class="font-medium block text-sm">{{ option.label }}</span>
+                <span class="text-xs text-gray-500">{{ option.description }}</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Teams Visibility -->
+        <div class="border-b pb-4">
+          <h3 class="font-medium text-gray-800 mb-3">Teams Membership</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for option in privacy_options %}
+            <label class="flex items-center p-4 border rounded-lg {% if privacy_settings.teams == option.value %}bg-green-50 border-irish-green{% endif %}">
+              <input type="radio" name="teams_visibility" value="{{ option.value }}" 
+                 {% if privacy_settings.teams == option.value %}checked{% endif %} 
+                 class="mr-2 text-irish-green focus:ring-irish-green">
+              <div>
+                <span class="font-medium block text-sm">{{ option.label }}</span>
+                <span class="text-xs text-gray-500">{{ option.description }}</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Points Visibility -->
+        <div class="border-b pb-4">
+          <h3 class="font-medium text-gray-800 mb-3">Points & Leaderboard Position</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for option in privacy_options %}
+            <label class="flex items-center p-4 border rounded-lg {% if privacy_settings.points == option.value %}bg-green-50 border-irish-green{% endif %}">
+              <input type="radio" name="points_visibility" value="{{ option.value }}" 
+                 {% if privacy_settings.points == option.value %}checked{% endif %} 
+                 class="mr-2 text-irish-green focus:ring-irish-green">
+              <div>
+                <span class="font-medium block text-sm">{{ option.label }}</span>
+                <span class="text-xs text-gray-500">{{ option.description }}</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Achievements Visibility -->
+        <div class="border-b pb-4">
+          <h3 class="font-medium text-gray-800 mb-3">Achievements</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for option in privacy_options %}
+            <label class="flex items-center p-4 border rounded-lg {% if privacy_settings.achievements == option.value %}bg-green-50 border-irish-green{% endif %}">
+              <input type="radio" name="achievements_visibility" value="{{ option.value }}" 
+                 {% if privacy_settings.achievements == option.value %}checked{% endif %} 
+                 class="mr-2 text-irish-green focus:ring-irish-green">
+              <div>
+                <span class="font-medium block text-sm">{{ option.label }}</span>
+                <span class="text-xs text-gray-500">{{ option.description }}</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Events Visibility -->
+        <div class="border-b pb-4">
+          <h3 class="font-medium text-gray-800 mb-3">Event Attendance</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for option in privacy_options %}
+            <label class="flex items-center p-4 border rounded-lg {% if privacy_settings.events == option.value %}bg-green-50 border-irish-green{% endif %}">
+              <input type="radio" name="events_visibility" value="{{ option.value }}" 
+                 {% if privacy_settings.events == option.value %}checked{% endif %} 
+                 class="mr-2 text-irish-green focus:ring-irish-green">
+              <div>
+                <span class="font-medium block text-sm">{{ option.label }}</span>
+                <span class="text-xs text-gray-500">{{ option.description }}</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-4">
+          <a href="/auth/profile" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Profile
+          </a>
+          <button type="submit" class="bg-irish-green text-white py-2 px-6 rounded-md hover:bg-opacity-90 transition">
+            Save Privacy Settings
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <div class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">
+      <p><i class="fas fa-shield-alt mr-1"></i> Note: Administrators can always view your complete profile information for support purposes.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

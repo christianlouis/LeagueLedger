@@ -110,13 +110,19 @@ def run_migrations(engine):
         # Add first_name and last_name columns if they don't exist
         add_name_columns(connection)
         
+        # Add privacy_settings column if it doesn't exist
+        add_privacy_settings_column(connection)
+        
+        # Add picture_manually_deleted column if it doesn't exist
+        add_picture_manually_deleted_column(connection)
+        
         print("Migrations completed successfully")
         
     except Exception as e:
         print(f"Error during migrations: {str(e)}")
     finally:
         connection.close()
-        
+
 def add_oauth_providers_column(connection):
     """Add additional_oauth_providers column to users table"""
     try:
@@ -175,3 +181,61 @@ def add_name_columns(connection):
             print("Column last_name already exists")
     except Exception as e:
         print(f"Error adding name columns: {str(e)}")
+
+def add_privacy_settings_column(connection):
+    """Add privacy_settings column to users table"""
+    try:
+        # Use database-agnostic way to check if column exists
+        inspector = inspect(engine)
+        columns = [col['name'] for col in inspector.get_columns('users')]
+        
+        if 'privacy_settings' not in columns:
+            print("Adding privacy_settings column to users table")
+            
+            # Add column with database-specific syntax
+            if engine.name == 'sqlite':
+                connection.execute(text("""
+                    ALTER TABLE users
+                    ADD COLUMN privacy_settings JSON
+                """))
+            else:  # MySQL
+                connection.execute(text("""
+                    ALTER TABLE users
+                    ADD COLUMN privacy_settings JSON NULL
+                """))
+                
+            connection.commit()
+            print("Successfully added privacy_settings column to users table")
+        else:
+            print("Column privacy_settings already exists")
+    except Exception as e:
+        print(f"Error adding privacy_settings column: {str(e)}")
+
+def add_picture_manually_deleted_column(connection):
+    """Add picture_manually_deleted column to users table"""
+    try:
+        # Use database-agnostic way to check if column exists
+        inspector = inspect(engine)
+        columns = [col['name'] for col in inspector.get_columns('users')]
+        
+        if 'picture_manually_deleted' not in columns:
+            print("Adding picture_manually_deleted column to users table")
+            
+            # Add column with database-specific syntax
+            if engine.name == 'sqlite':
+                connection.execute(text("""
+                    ALTER TABLE users
+                    ADD COLUMN picture_manually_deleted BOOLEAN DEFAULT FALSE
+                """))
+            else:  # MySQL
+                connection.execute(text("""
+                    ALTER TABLE users
+                    ADD COLUMN picture_manually_deleted BOOLEAN DEFAULT FALSE
+                """))
+                
+            connection.commit()
+            print("Successfully added picture_manually_deleted column to users table")
+        else:
+            print("Column picture_manually_deleted already exists")
+    except Exception as e:
+        print(f"Error adding picture_manually_deleted column: {str(e)}")

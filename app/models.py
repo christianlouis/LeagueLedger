@@ -39,6 +39,11 @@ class User(Base, BaseUser):
     first_name = Column(String(50), nullable=True)
     last_name = Column(String(50), nullable=True)
     picture = Column(String(255), nullable=True)  # URL to profile picture
+    picture_manually_deleted = Column(Boolean, default=False)  # Track if user has deleted their profile picture
+    
+    # Privacy settings - JSON field to store privacy preferences
+    # Default: { "email": "private", "teams": "public", "points": "public", "achievements": "public" }
+    privacy_settings = Column(JSON, nullable=True)
 
     # Relationships
     memberships = relationship("TeamMembership", back_populates="user")
@@ -61,6 +66,23 @@ class User(Base, BaseUser):
     def identity(self) -> str:
         """Return the identity of this user."""
         return str(self.id)
+        
+    def get_default_privacy_settings(self):
+        """Return the default privacy settings if none are set"""
+        return {
+            "email": "private",
+            "full_name": "friends",
+            "teams": "public",
+            "points": "public", 
+            "achievements": "public",
+            "events": "friends"
+        }
+        
+    def get_privacy_settings(self):
+        """Get user's privacy settings or default if not set"""
+        if not self.privacy_settings:
+            return self.get_default_privacy_settings()
+        return self.privacy_settings
 
     def __repr__(self):
         return f"<User {self.username}>"
