@@ -2,7 +2,12 @@
 {% block content %}
 <div class="max-w-5xl mx-auto">
     <div class="bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold text-irish-green mb-6">Admin Dashboard</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-irish-green">Admin Panel</h1>
+            <a href="/admin/dashboard" class="bg-golden-ale text-black-stout px-4 py-2 rounded-md hover:bg-opacity-90 transition flex items-center">
+                <i class="fas fa-chart-line mr-2"></i> Statistics Dashboard
+            </a>
+        </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for model_key, display_name in models %}
@@ -23,6 +28,9 @@
         <div class="mt-10 pt-6 border-t border-gray-200">
             <h2 class="text-xl font-bold text-irish-green mb-4">Quick Actions</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="/admin/dashboard" class="bg-golden-ale text-black-stout px-4 py-3 rounded-md hover:bg-opacity-90 transition flex items-center justify-center">
+                    <i class="fas fa-chart-line mr-2"></i> Statistics Dashboard
+                </a>
                 <a href="/qr" class="bg-white border border-irish-green text-irish-green hover:bg-irish-green hover:text-white px-4 py-3 rounded-md transition flex items-center">
                     <i class="fas fa-qrcode mr-2"></i> QR Code Dashboard
                 </a>

@@ -5,10 +5,15 @@ Admin interface for managing database records.
 from fastapi import APIRouter, Depends, Request, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import inspect
+from sqlalchemy import inspect, func, desc, text
 import json
 from typing import Dict, Any, List, Type, Optional
 import inspect as py_inspect
+from datetime import datetime, timedelta
+import time
+import os
+import psutil
+from dateutil.relativedelta import relativedelta
 
 from ..db import SessionLocal, Base
 from ..models import (
@@ -41,6 +46,168 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Get user statistics for the dashboard
+def get_user_statistics(db: Session) -> Dict[str, Any]:
+    """Get user statistics for the admin dashboard."""
+    stats = {}
+    
+    # Total users
+    stats["total_users"] = db.query(User).count()
+    
+    # Active users (not disabled)
+    stats["active_users"] = db.query(User).filter(User.is_active == True).count()
+    
+    # Verified users
+    stats["verified_users"] = db.query(User).filter(User.is_verified == True).count()
+    
+    # Admin users
+    stats["admin_users"] = db.query(User).filter(User.is_admin == True).count()
+    
+    # New registrations in the last 30 days
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    stats["new_registrations_30d"] = db.query(User).filter(
+        User.created_at >= thirty_days_ago
+    ).count()
+    
+    # Monthly user registration data for the chart (last 6 months)
+    monthly_data = []
+    month_labels = []
+    
+    # Get the current month and year
+    current_date = datetime.now()
+    
+    # Loop through the last 6 months
+    for i in range(5, -1, -1):
+        # Calculate month and year for this data point
+        month_date = current_date - relativedelta(months=i)
+        start_of_month = datetime(month_date.year, month_date.month, 1)
+        
+        # For the current month, only count until today
+        if i == 0:
+            end_of_month = current_date
+        else:
+            # Calculate the end of the month
+            if month_date.month == 12:
+                end_of_month = datetime(month_date.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                end_of_month = datetime(month_date.year, month_date.month + 1, 1) - timedelta(days=1)
+        
+        # Format month as abbreviated month name
+        month_name = month_date.strftime('%b')
+        month_labels.append(month_name)
+        
+        # Count users registered in this month
+        monthly_count = db.query(User).filter(
+            User.created_at >= start_of_month,
+            User.created_at <= end_of_month
+        ).count()
+        
+        monthly_data.append(monthly_count)
+    
+    # Add the data to the stats
+    stats["monthly_registrations"] = monthly_data
+    stats["month_labels"] = month_labels
+    
+    return stats
+
+# Get team statistics for the dashboard
+def get_team_statistics(db: Session) -> Dict[str, Any]:
+    """Get team statistics for the admin dashboard."""
+    stats = {}
+    
+    # Total teams
+    stats["total_teams"] = db.query(Team).count()
+    
+    # Active teams
+    stats["active_teams"] = db.query(Team).filter(Team.is_active == True).count()
+    
+    # Public teams
+    stats["public_teams"] = db.query(Team).filter(Team.is_public == True).count()
+    
+    # Team size distribution - teams grouped by member count
+    # Modified query to correctly count team members and group by team
+    team_sizes = db.query(
+        TeamMembership.team_id,
+        func.count(TeamMembership.user_id).label('member_count')
+    ).group_by(TeamMembership.team_id).subquery()
+    
+    # Now we can query the distribution from the subquery
+    team_distribution = db.query(
+        team_sizes.c.member_count,
+        func.count().label('count')
+    ).group_by(team_sizes.c.member_count).all()
+    
+    # Convert to a list of dictionaries for easier handling in the template
+    team_dist_list = [{"member_count": size[0], "count": size[1]} for size in team_distribution]
+    
+    stats["team_distribution"] = team_dist_list
+    
+    return stats
+
+# Get event statistics for the dashboard
+def get_event_statistics(db: Session) -> Dict[str, Any]:
+    """Get event statistics for the admin dashboard."""
+    stats = {}
+    
+    # Total events
+    stats["total_events"] = db.query(Event).count()
+    
+    # Past events
+    today = datetime.now().date()
+    stats["past_events"] = db.query(Event).filter(Event.event_date < today).count()
+    
+    # Upcoming events
+    stats["upcoming_events_count"] = db.query(Event).filter(Event.event_date >= today).count()
+    
+    # List of upcoming events
+    upcoming_events = db.query(Event).filter(
+        Event.event_date >= today
+    ).order_by(Event.event_date).limit(5).all()
+    
+    stats["upcoming_events"] = upcoming_events
+    
+    # Events with highest attendance
+    attendance_rates = db.query(
+        Event.id.label('event_id'),
+        Event.name.label('event_name'),
+        func.count(EventAttendee.id).label('attendee_count')
+    ).join(EventAttendee).group_by(Event.id, Event.name).order_by(
+        desc('attendee_count')
+    ).limit(5).all()
+    
+    stats["attendance_rates"] = attendance_rates
+    
+    return stats
+
+# Get system health information
+def get_system_health(db: Session) -> Dict[str, Any]:
+    """Get system health information for the admin dashboard."""
+    health_info = {}
+    
+    # Database status
+    try:
+        result = db.execute(text("SELECT 'online' as status")).fetchall()
+        health_info["database_status"] = "online" if result else "offline"
+    except Exception as e:
+        health_info["database_status"] = "error"
+        health_info["database_error"] = str(e)
+    
+    # System uptime
+    try:
+        uptime_seconds = time.time() - psutil.boot_time()
+        days, remainder = divmod(uptime_seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        health_info["uptime"] = f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes"
+    except Exception:
+        health_info["uptime"] = "Unknown"
+    
+    # Recent errors (would be fetched from a logging system in production)
+    # For this example, we'll return a placeholder
+    health_info["recent_errors"] = []
+    
+    return health_info
 
 def get_model_info(model_class: Type[Base]) -> Dict[str, Dict[str, Any]]:
     """Get column information for a model."""
@@ -78,6 +245,28 @@ def get_relationships(model_class: Type[Base]) -> Dict[str, str]:
 @require_admin(redirect_url="/auth/login?next=/admin/")
 async def admin_home(request: Request, db: Session = Depends(get_db)):
     """Admin dashboard home."""
+    # Get statistics
+    user_stats = get_user_statistics(db)
+    team_stats = get_team_statistics(db)
+    event_stats = get_event_statistics(db)
+    system_health = get_system_health(db)
+    
+    return templates.TemplateResponse(
+        "admin/dashboard.html", 
+        {
+            "request": request, 
+            "user": request.user,
+            "user_stats": user_stats,
+            "team_stats": team_stats,
+            "event_stats": event_stats,
+            "system_health": system_health
+        }
+    )
+
+@router.get("/models", response_class=HTMLResponse)
+@require_admin(redirect_url="/auth/login?next=/admin/models")
+async def admin_models(request: Request, db: Session = Depends(get_db)):
+    """Admin models overview."""
     # Since we're using Starlette's authentication, the user is now available in request.user
     model_list = [(key, name) for key, (_, name) in MODELS.items()]
     return templates.TemplateResponse(

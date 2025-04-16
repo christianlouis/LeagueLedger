@@ -30,6 +30,8 @@ python-dotenv>=1.0.0
 email-validator>=2.0.0
 pydantic>=2.3.0
 qrcode>=7.4.2
+psutil>=5.9.0  # System monitoring and statistics
+python-dateutil>=2.8.2  # Date manipulation utilities
 
 # Email support
 fastapi-mail>=1.4.2
