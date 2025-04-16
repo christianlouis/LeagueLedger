@@ -66,6 +66,18 @@ class User(Base, BaseUser):
         return f"<User {self.username}>"
 
 
+# Add SystemSettings model for storing setup configuration
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    setup_completed = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<SystemSettings setup_completed={self.setup_completed}>"
+
+
 class OAuthAccount(Base):
     __tablename__ = "oauth_accounts"
     id = Column(Integer, primary_key=True, index=True)

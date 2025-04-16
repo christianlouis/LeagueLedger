@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - LeagueLedger{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js for statistics visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+    <h1 class="text-3xl font-garamond text-irish-green font-bold mb-6">Admin Dashboard</h1>
+    
+    <!-- Dashboard Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- User Stats Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-irish-green">Users</h3>
+                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Total: {{ user_stats.total_users }}</span>
+            </div>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Active:</span>
+                    <span class="font-medium">{{ user_stats.active_users }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Verified:</span>
+                    <span class="font-medium">{{ user_stats.verified_users }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Admins:</span>
+                    <span class="font-medium">{{ user_stats.admin_users }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">New (30d):</span>
+                    <span class="font-medium">{{ user_stats.new_registrations_30d }}</span>
+                </div>
+                <div class="mt-4">
+                    <a href="/admin/user" class="text-irish-green hover:underline text-sm flex items-center">
+                        <i class="fas fa-users mr-1"></i> Manage Users
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Team Stats Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-irish-green">Teams</h3>
+                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Total: {{ team_stats.total_teams }}</span>
+            </div>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Active:</span>
+                    <span class="font-medium">{{ team_stats.active_teams }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Public:</span>
+                    <span class="font-medium">{{ team_stats.public_teams }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Private:</span>
+                    <span class="font-medium">{{ team_stats.total_teams - team_stats.public_teams }}</span>
+                </div>
+                <div class="mt-4">
+                    <a href="/admin/team" class="text-irish-green hover:underline text-sm flex items-center">
+                        <i class="fas fa-arrow-right mr-1"></i> Manage Teams
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Event Stats Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-irish-green">Events</h3>
+                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Total: {{ event_stats.total_events }}</span>
+            </div>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Past:</span>
+                    <span class="font-medium">{{ event_stats.past_events }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Upcoming:</span>
+                    <span class="font-medium">{{ event_stats.upcoming_events_count }}</span>
+                </div>
+                {% if event_stats.upcoming_events %}
+                <div class="text-gray-500 text-sm mt-2">Next event:</div>
+                <div class="text-sm font-medium">{{ event_stats.upcoming_events[0].name }}</div>
+                <div class="text-xs text-gray-500">{{ event_stats.upcoming_events[0].event_date.strftime('%Y-%m-%d') }}</div>
+                {% endif %}
+                <div class="mt-2">
+                    <a href="/admin/event" class="text-irish-green hover:underline text-sm flex items-center">
+                        <i class="fas fa-arrow-right mr-1"></i> Manage Events
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Health Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-irish-green">System</h3>
+                <span class="bg-{{ 'green' if system_health.database_status == 'online' else 'red' }}-100 text-{{ 'green' if system_health.database_status == 'online' else 'red' }}-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {{ system_health.database_status }}
+                </span>
+            </div>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Uptime:</span>
+                    <span class="font-medium text-sm">{{ system_health.uptime }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Errors:</span>
+                    <span class="font-medium">{{ system_health.recent_errors|length }}</span>
+                </div>
+                <div class="mt-4">
+                    <a href="#" class="text-irish-green hover:underline text-sm flex items-center">
+                        <i class="fas fa-cog mr-1"></i> System Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- User Growth Chart -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-irish-green mb-4">User Growth</h3>
+            <div class="h-64">
+                <canvas id="userGrowthChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Team Distribution Chart -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-irish-green mb-4">Team Sizes</h3>
+            <div class="h-64">
+                <canvas id="teamSizeChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Upcoming Events Table -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-irish-green mb-4">Upcoming Events</h3>
+            {% if event_stats.upcoming_events %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for event in event_stats.upcoming_events %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ event.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ event.event_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ event.location }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-gray-500">No upcoming events</div>
+            {% endif %}
+            <div class="mt-4 flex justify-end">
+                <a href="/admin/event/new" class="bg-irish-green hover:bg-opacity-90 text-white px-4 py-2 rounded-md text-sm">
+                    <i class="fas fa-plus mr-2"></i>Add Event
+                </a>
+            </div>
+        </div>
+        
+        <!-- Top Events Attendance -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-irish-green mb-4">Top Events by Attendance</h3>
+            {% if event_stats.attendance_rates %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for event in event_stats.attendance_rates %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ event.event_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ event.attendee_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-gray-500">No attendance data available</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // User growth chart with real data from backend
+        const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+        const userGrowthChart = new Chart(userGrowthCtx, {
+            type: 'line',
+            data: {
+                labels: {{ user_stats.month_labels | tojson }},
+                datasets: [{
+                    label: 'New Users',
+                    data: {{ user_stats.monthly_registrations | tojson }},
+                    backgroundColor: 'rgba(0, 104, 55, 0.1)',
+                    borderColor: 'rgba(0, 104, 55, 1)',
+                    borderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Team size distribution chart
+        const teamData = [0, 0, 0, 0, 0, 0, 0]; // 0 to 6+ members
+        {% if team_stats.team_distribution %}
+            {% for item in team_stats.team_distribution %}
+                {% if item.member_count < 6 %}
+                    teamData[{{ item.member_count }}] = {{ item.count }};
+                {% else %}
+                    teamData[6] += {{ item.count }};
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        
+        const teamSizeCtx = document.getElementById('teamSizeChart').getContext('2d');
+        const teamSizeChart = new Chart(teamSizeCtx, {
+            type: 'bar',
+            data: {
+                labels: ['0', '1', '2', '3', '4', '5', '6+'],
+                datasets: [{
+                    label: 'Teams by Member Count',
+                    data: teamData,
+                    backgroundColor: 'rgba(255, 180, 0, 0.7)',
+                    borderColor: 'rgba(255, 180, 0, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Number of Members'
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
