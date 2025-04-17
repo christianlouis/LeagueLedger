@@ -12,62 +12,92 @@
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
         .header {
             background-color: #2D7738;
             padding: 20px;
             text-align: center;
             color: white;
-            border-radius: 5px 5px 0 0;
         }
         .content {
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-top: none;
-            border-radius: 0 0 5px 5px;
+            padding: 30px;
+            background-color: #ffffff;
+        }
+        .button-container {
+            margin: 25px 0;
+            text-align: center;
         }
         .button {
             display: inline-block;
             background-color: #2D7738;
             color: white;
             text-decoration: none;
-            padding: 10px 20px;
+            padding: 12px 25px;
             border-radius: 5px;
-            margin: 20px 0;
+            font-weight: 500;
+        }
+        .link-help {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            font-size: 14px;
         }
         .footer {
-            margin-top: 20px;
-            font-size: 12px;
+            padding: 20px;
             text-align: center;
+            font-size: 12px;
             color: #777;
+            border-top: 1px solid #eaeaea;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Verify Your Email Address</h1>
-    </div>
-    
-    <div class="content">
-        <p>Hello {{ username }},</p>
+    <div class="container">
+        <div class="header">
+            <h1>Email Verification</h1>
+        </div>
         
-        <p>Thank you for registering with LeagueLedger! To complete your registration, please verify your email address by clicking the button below:</p>
+        <div class="content">
+            <p>Hello {{ username }},</p>
+            
+            <p>Thank you for creating an account with LeagueLedger, your pub quiz team tracking platform. We're excited to have you join our community!</p>
+            
+            <p>To ensure account security and complete your registration, please verify your email address by clicking the button below:</p>
+            
+            <div class="button-container">
+                <a href="{{ verification_link }}" class="button">Verify My Email</a>
+            </div>
+            
+            <div class="link-help">
+                <p>If the button above doesn't work, you can copy and paste this link into your browser:</p>
+                <p><a href="{{ verification_link }}">Complete your verification</a></p>
+            </div>
+            
+            <p>This verification step helps us keep your account secure and allows you to:</p>
+            <ul>
+                <li>Create or join teams</li>
+                <li>Track your quiz night scores</li>
+                <li>Earn points and achievements</li>
+                <li>Climb the leaderboards</li>
+            </ul>
+            
+            <p>If you did not create an account with LeagueLedger, please disregard this email.</p>
+            
+            <p>Best regards,<br>The LeagueLedger Team</p>
+        </div>
         
-        <p style="text-align: center;">
-            <a href="{{ verification_link }}" class="button">Verify Email</a>
-        </p>
-        
-        <p>Or copy and paste this link into your browser:</p>
-        <p>{{ verification_link }}</p>
-        
-        <p>If you did not create an account with us, please ignore this email.</p>
-        
-        <p>Best regards,<br>The LeagueLedger Team</p>
-    </div>
-    
-    <div class="footer">
-        <p>© LeagueLedger. All rights reserved.</p>
-        <p>This is an automated message, please do not reply to this email.</p>
+        <div class="footer">
+            <p>© 2025 LeagueLedger. All rights reserved.</p>
+            <p>This email was sent to verify your account registration.</p>
+        </div>
     </div>
 </body>
 </html>

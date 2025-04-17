@@ -12,19 +12,27 @@
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
         .header {
             background-color: #2D7738;
             padding: 20px;
             text-align: center;
             color: white;
-            border-radius: 5px 5px 0 0;
         }
         .content {
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-top: none;
-            border-radius: 0 0 5px 5px;
+            padding: 30px;
+            background-color: #ffffff;
+        }
+        .button-container {
+            margin: 25px 0;
+            text-align: center;
         }
         .button {
             display: inline-block;
@@ -33,54 +41,78 @@
             text-decoration: none;
             padding: 10px 20px;
             border-radius: 5px;
-            margin: 20px 0;
+            font-weight: 500;
         }
         .button.approve {
-            background-color: #4CAF50;
+            background-color: #2D7738;
         }
         .button.deny {
-            background-color: #f44336;
+            background-color: #9e9e9e;
             margin-left: 10px;
         }
-        .footer {
+        .link-help {
             margin-top: 20px;
-            font-size: 12px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .footer {
+            padding: 20px;
             text-align: center;
+            font-size: 12px;
             color: #777;
+            border-top: 1px solid #eaeaea;
+        }
+        .message-box {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            border-left: 3px solid #2D7738;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Team Join Request</h1>
-    </div>
-    
-    <div class="content">
-        <p>Hello {{ captain_name }},</p>
-        
-        <p><strong>{{ requester_name }}</strong> has requested to join your team <strong>{{ team_name }}</strong>.</p>
-        
-        {% if message %}
-        <p>Message from {{ requester_name }}:<br><em>"{{ message }}"</em></p>
-        {% endif %}
-        
-        <p>You can approve or deny this request by clicking one of the buttons below:</p>
-        
-        <div style="margin: 30px 0; text-align: center;">
-            <a href="{{ approve_url }}" class="button approve">Approve Request</a>
-            <a href="{{ deny_url }}" class="button deny">Deny Request</a>
+    <div class="container">
+        <div class="header">
+            <h1>Team Join Request</h1>
         </div>
         
-        <p>Or you can copy and paste one of these links into your browser:</p>
-        <p>Approve: {{ approve_url }}</p>
-        <p>Deny: {{ deny_url }}</p>
+        <div class="content">
+            <p>Hello {{ captain_name }},</p>
+            
+            <p>We hope this email finds you well. <strong>{{ requester_name }}</strong> has requested to join your team <strong>{{ team_name }}</strong> on LeagueLedger.</p>
+            
+            {% if message %}
+            <div class="message-box">
+                <p><strong>Message from {{ requester_name }}:</strong></p>
+                <p><em>"{{ message }}"</em></p>
+            </div>
+            {% endif %}
+            
+            <p>As the team captain, you can review this request and decide whether to approve or deny it.</p>
+            
+            <div class="button-container">
+                <a href="{{ approve_url }}" class="button approve">Approve Request</a>
+                <a href="{{ deny_url }}" class="button deny">Decline Request</a>
+            </div>
+            
+            <div class="link-help">
+                <p>If the buttons above don't work, you can copy and paste one of these links into your browser:</p>
+                <p>To approve: <a href="{{ approve_url }}">Accept team member</a></p>
+                <p>To decline: <a href="{{ deny_url }}">Decline request</a></p>
+            </div>
+            
+            <p>Thank you for being an active team captain in our community!</p>
+            
+            <p>Best regards,<br>The LeagueLedger Team</p>
+        </div>
         
-        <p>Best regards,<br>The LeagueLedger Team</p>
-    </div>
-    
-    <div class="footer">
-        <p>© LeagueLedger. All rights reserved.</p>
-        <p>This is an automated message, please do not reply to this email.</p>
+        <div class="footer">
+            <p>© 2025 LeagueLedger. All rights reserved.</p>
+            <p>This message was sent regarding team management in your LeagueLedger account.</p>
+        </div>
     </div>
 </body>
 </html>

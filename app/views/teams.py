@@ -13,7 +13,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 from starlette.middleware.sessions import SessionMiddleware
 
 from ..db import SessionLocal, get_db
-from ..models import Team, TeamMembership, User, QRCode, TeamAchievement, TeamMember, TeamJoinRequest
+from ..models import Team, TeamMembership, User, QRCode, TeamAchievement, TeamJoinRequest
 from ..schemas import TeamCreate
 from ..templates_config import templates
 from ..utils.auth import get_current_user, is_team_captain
@@ -90,28 +90,21 @@ async def create_team_post(
         name=name,
         description=description,
         logo_url=logo_url,
-        is_open=is_open  # Save is_open value
+        is_open=is_open,  # Save is_open value
+        owner_id=current_user.id  # Set the owner_id field
     )
     db.add(team)
     db.commit()
     db.refresh(team)
     
-    # Make the user an admin of the team in TeamMembership
+    # Make the user an admin and captain of the team in TeamMembership
     team_membership = TeamMembership(
         user_id=current_user.id,
         team_id=team.id,
-        is_admin=True  # User becomes admin of the team
+        is_admin=True,
+        is_captain=True  # User becomes both admin and captain of the team
     )
     db.add(team_membership)
-    
-    # Create TeamMember relationship as well
-    team_member = TeamMember(
-        user_id=current_user.id,
-        team_id=team.id,
-        is_captain=True  # Use is_captain instead of role
-    )
-    db.add(team_member)
-    
     db.commit()
 
     return RedirectResponse("/teams/", status_code=HTTP_303_SEE_OTHER)
@@ -173,9 +166,9 @@ async def join_team_page(
         )
     
     # Check if user is already a member
-    existing_membership = db.query(TeamMember).filter(
-        TeamMember.team_id == team_id, 
-        TeamMember.user_id == current_user.id
+    existing_membership = db.query(TeamMembership).filter(
+        TeamMembership.team_id == team_id, 
+        TeamMembership.user_id == current_user.id
     ).first()
     
     if existing_membership:
@@ -232,9 +225,9 @@ async def join_team_request(
         )
     
     # Check if user is already a member
-    existing_membership = db.query(TeamMember).filter(
-        TeamMember.team_id == team_id, 
-        TeamMember.user_id == current_user.id
+    existing_membership = db.query(TeamMembership).filter(
+        TeamMembership.team_id == team_id, 
+        TeamMembership.user_id == current_user.id
     ).first()
     
     if existing_membership:
@@ -243,10 +236,11 @@ async def join_team_request(
     # Open team - directly add the user
     if team.is_open:
         # Add user to team
-        new_member = TeamMember(
+        new_member = TeamMembership(
             team_id=team_id,
             user_id=current_user.id,
-            is_captain=False  # Use is_captain instead of role
+            is_captain=False,
+            is_admin=False
         )
         
         db.add(new_member)
@@ -286,9 +280,9 @@ async def join_team_request(
     db.commit()
     
     # Get team captains to notify
-    captains = db.query(User).join(TeamMember).filter(
-        TeamMember.team_id == team_id,
-        TeamMember.is_captain == True  # Use is_captain instead of role
+    captains = db.query(User).join(TeamMembership).filter(
+        TeamMembership.team_id == team_id,
+        TeamMembership.is_captain == True
     ).all()
     
     if not captains:
@@ -352,17 +346,10 @@ def direct_join_team(request: Request, team_id: int, db: Session = Depends(get_d
     new_member = TeamMembership(
         user_id=user_id,
         team_id=team.id,
-        is_admin=False
+        is_admin=False,
+        is_captain=False
     )
     db.add(new_member)
-    
-    # Also create TeamMember record for consistency
-    team_member = TeamMember(
-        user_id=user_id,
-        team_id=team.id,
-        is_captain=False  # Use is_captain instead of role
-    )
-    db.add(team_member)
     db.commit()
     
     # Redirect to the team detail page
