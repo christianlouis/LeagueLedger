@@ -1,107 +1,109 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-2xl font-bold mb-6">Teams</h2>
+<div class="max-w-4xl mx-auto">
+  <h2 class="text-2xl font-bold mb-6">Teams</h2>
 
-{% if error %}
-<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-  <span class="block sm:inline">{{ error }}</span>
-</div>
-{% endif %}
+  {% if error %}
+  <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+    <span class="block sm:inline">{{ error }}</span>
+  </div>
+  {% endif %}
 
-<div class="grid md:grid-cols-2 gap-6">
-  <div class="bg-white p-6 rounded-lg shadow-md">
-    <h3 class="text-xl font-semibold mb-4" style="color: var(--irish-green);">Available Teams</h3>
-    {% if teams %}
-      <ul class="space-y-3">
-        {% for team in teams %}
-          <li class="border-b pb-2 flex justify-between items-center">
-            <a href="/teams/{{ team.id }}" class="font-medium hover:text-irish-green">{{ team.name }}</a>
-            {% if user %}
-              {% if team.id in user_team_ids %}
-                <span class="px-3 py-1 text-sm rounded-md bg-gray-200 text-gray-800">Member</span>
+  <div class="grid md:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+      <h3 class="text-xl font-semibold mb-4" style="color: var(--irish-green);">Available Teams</h3>
+      {% if teams %}
+        <ul class="space-y-3">
+          {% for team in teams %}
+            <li class="border-b pb-2 flex justify-between items-center">
+              <a href="/teams/{{ team.id }}" class="font-medium hover:text-irish-green">{{ team.name }}</a>
+              {% if user %}
+                {% if team.id in user_team_ids %}
+                  <span class="px-3 py-1 text-sm rounded-md bg-gray-200 text-gray-800">Member</span>
+                {% else %}
+                  <form action="/teams/join/{{ team.id }}" method="post" class="inline">
+                    <button type="submit" 
+                            class="px-3 py-1 text-sm rounded-md" 
+                            style="background-color: var(--golden-ale); color: var(--black-stout);">
+                      Join Team
+                    </button>
+                  </form>
+                {% endif %}
               {% else %}
-                <form action="/teams/join/{{ team.id }}" method="post" class="inline">
-                  <button type="submit" 
-                          class="px-3 py-1 text-sm rounded-md" 
-                          style="background-color: var(--golden-ale); color: var(--black-stout);">
-                    Join Team
-                  </button>
-                </form>
+                <a href="/auth/login?next=/teams" 
+                  class="px-3 py-1 text-sm rounded-md" 
+                  style="background-color: var(--cream-white); color: var(--irish-green); border: 1px solid var(--irish-green);">
+                  Login to Join
+                </a>
               {% endif %}
-            {% else %}
-              <a href="/auth/login?next=/teams" 
-                 class="px-3 py-1 text-sm rounded-md" 
-                 style="background-color: var(--cream-white); color: var(--irish-green); border: 1px solid var(--irish-green);">
-                Login to Join
-              </a>
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="italic text-gray-500">No teams available yet.</p>
-    {% endif %}
-  </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="italic text-gray-500">No teams available yet.</p>
+      {% endif %}
+    </div>
 
-  <div class="bg-white p-6 rounded-lg shadow-md">
-    <h3 class="text-xl font-semibold mb-4" style="color: var(--irish-green);">Create New Team</h3>
-    {% if user %}
-      <form action="/teams/create" method="post" class="mt-4">
-        <div class="mb-4">
-          <label for="name" class="block text-sm font-medium mb-1">Team Name</label>
-          <input type="text" name="name" id="name" placeholder="Enter team name" required 
-                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2"
-                style="border-color: var(--irish-green); focus:ring-color: var(--irish-green);">
-        </div>
-        <button type="submit" 
-                class="w-full px-4 py-2 text-white rounded-md font-medium"
-                style="background-color: var(--irish-green);">
-          Create Team
-        </button>
-      </form>
-    {% else %}
-      <div class="p-4 bg-gray-100 rounded-md">
-        <p class="text-center mb-2">You need to be logged in to create a team</p>
-        <a href="/auth/login" 
-           class="block w-full text-center px-4 py-2 text-white rounded-md font-medium"
-           style="background-color: var(--irish-green);">
-          Log In
-        </a>
-      </div>
-    {% endif %}
-  </div>
-</div>
-
-{% if user and user_team_ids %}
-<div class="mt-8">
-  <h2 class="text-2xl font-bold mb-4">Your Teams</h2>
-  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {% for team in teams %}
-      {% if team.id in user_team_ids %}
-        <div class="bg-white p-6 rounded-lg shadow-md">
-          <h3 class="text-xl font-semibold mb-2" style="color: var(--irish-green);">{{ team.name }}</h3>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+      <h3 class="text-xl font-semibold mb-4" style="color: var(--irish-green);">Create New Team</h3>
+      {% if user %}
+        <form action="/teams/create" method="post" class="mt-4">
           <div class="mb-4">
-            <span class="text-gray-600">{{ team.description|default("No description available", true)|truncate(120) }}</span>
+            <label for="name" class="block text-sm font-medium mb-1">Team Name</label>
+            <input type="text" name="name" id="name" placeholder="Enter team name" required 
+                  class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2"
+                  style="border-color: var(--irish-green); focus:ring-color: var(--irish-green);">
           </div>
-          <a href="/teams/{{ team.id }}" 
-             class="block text-center w-full px-4 py-2 text-white rounded-md font-medium"
-             style="background-color: var(--irish-green);">
-            View Team
+          <button type="submit" 
+                  class="w-full px-4 py-2 text-white rounded-md font-medium"
+                  style="background-color: var(--irish-green);">
+            Create Team
+          </button>
+        </form>
+      {% else %}
+        <div class="p-4 bg-gray-100 rounded-md">
+          <p class="text-center mb-2">You need to be logged in to create a team</p>
+          <a href="/auth/login" 
+            class="block w-full text-center px-4 py-2 text-white rounded-md font-medium"
+            style="background-color: var(--irish-green);">
+            Log In
           </a>
         </div>
       {% endif %}
-    {% endfor %}
+    </div>
   </div>
-</div>
-{% endif %}
 
-<div class="mt-10 bg-white p-6 rounded-lg shadow-md">
-  <h3 class="text-xl font-semibold mb-4" style="color: var(--irish-green);">About Teams</h3>
-  <p class="mb-4">
-    Teams are the heart of LeagueLedger. Join an existing team or create your own to start tracking your pub quiz triumphs!
-  </p>
-  <p class="italic">
-    Every point counts in the journey to becoming pub quiz champions.
-  </p>
+  {% if user and user_team_ids %}
+  <div class="mt-8">
+    <h2 class="text-2xl font-bold mb-4">Your Teams</h2>
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for team in teams %}
+        {% if team.id in user_team_ids %}
+          <div class="bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-xl font-semibold mb-2" style="color: var(--irish-green);">{{ team.name }}</h3>
+            <div class="mb-4">
+              <span class="text-gray-600">{{ team.description|default("No description available", true)|truncate(120) }}</span>
+            </div>
+            <a href="/teams/{{ team.id }}" 
+              class="block text-center w-full px-4 py-2 text-white rounded-md font-medium"
+              style="background-color: var(--irish-green);">
+              View Team
+            </a>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="mt-10 bg-white p-6 rounded-lg shadow-md">
+    <h3 class="text-xl font-semibold mb-4" style="color: var(--irish-green);">About Teams</h3>
+    <p class="mb-4">
+      Teams are the heart of LeagueLedger. Join an existing team or create your own to start tracking your pub quiz triumphs!
+    </p>
+    <p class="italic">
+      Every point counts in the journey to becoming pub quiz champions.
+    </p>
+  </div>
 </div>
 {% endblock %}

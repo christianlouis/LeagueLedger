@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, BackgroundTasks
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, BackgroundTasks, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from typing import Optional, List, Dict, Any
 import secrets
 import os
 import uuid
 import re
+import shutil
+from pathlib import Path
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_302_FOUND
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -445,7 +447,10 @@ async def oauth_callback(
                 user.first_name = first_name
             if last_name and not user.last_name:
                 user.last_name = last_name
-            if picture and not user.picture:
+            
+            # Only update profile picture if one doesn't exist yet or if it was never manually deleted
+            # We track manual deletion by setting a flag in the database
+            if picture and (user.picture is None and not user.picture_manually_deleted):
                 user.picture = picture
                 
             # Update last login time
@@ -528,6 +533,172 @@ async def profile_page(request: Request, db: Session = Depends(get_db)):
         "auth/profile.html", 
         {"request": request, "user": user}
     )
+
+@router.post("/update-profile-picture", response_class=HTMLResponse)
+async def update_profile_picture(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Handle profile picture upload"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Get user from database
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Validate file type
+    valid_extensions = [".jpg", ".jpeg", ".png"]
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    if file_ext not in valid_extensions:
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "Invalid file type. Only JPG and PNG are allowed."}
+        )
+    
+    # Create directory if it doesn't exist
+    upload_dir = Path("app/static/uploads/profile_pictures")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filename
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = upload_dir / unique_filename
+    
+    # Save the file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Update user profile with the picture URL
+    user.picture = f"/static/uploads/profile_pictures/{unique_filename}"
+    user.picture_manually_deleted = False  # Reset manual deletion flag
+    db.commit()
+    
+    # Redirect back to profile with success message
+    return RedirectResponse(
+        "/auth/profile?message=Profile+picture+updated+successfully",
+        status_code=HTTP_303_SEE_OTHER
+    )
+
+@router.post("/delete-profile-picture", response_class=HTMLResponse)
+async def delete_profile_picture(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Handle profile picture deletion"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Get user from database
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Only proceed if user has a profile picture
+    if user.picture:
+        # Get the file path
+        image_path = user.picture.replace("/static/", "app/static/")
+        
+        # Try to delete the file if it exists
+        try:
+            if os.path.exists(image_path):
+                os.remove(image_path)
+        except Exception as e:
+            print(f"Error deleting profile picture file: {str(e)}")
+            # Continue anyway since we still want to clear the database entry
+        
+        # Clear the picture field in the database and set the manually deleted flag
+        user.picture = None
+        user.picture_manually_deleted = True
+        db.commit()
+    
+    # Redirect back to profile with success message
+    return RedirectResponse(
+        "/auth/profile?message=Profile+picture+deleted+successfully",
+        status_code=HTTP_303_SEE_OTHER
+    )
+
+@router.post("/update-username", response_class=HTMLResponse)
+async def update_username(
+    request: Request,
+    username: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Handle username update"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Get user from database
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Check if username is unchanged
+    if user.username == username:
+        return RedirectResponse(
+            "/auth/profile?message=No+changes+made+to+username",
+            status_code=HTTP_303_SEE_OTHER
+        )
+    
+    # Validate username
+    if len(username) < 3:
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "Username must be at least 3 characters long"}
+        )
+    
+    if len(username) > 30:
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "Username must be less than 30 characters long"}
+        )
+    
+    # Check if username contains only allowed characters (alphanumeric, underscore, hyphen)
+    if not re.match(r'^[a-zA-Z0-9_-]+$', username):
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "Username can only contain letters, numbers, underscores and hyphens"}
+        )
+    
+    # Check if username already exists
+    existing_user = db.query(User).filter(User.username == username).first()
+    if existing_user:
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "Username already taken"}
+        )
+    
+    # Update user's username
+    old_username = user.username
+    user.username = username
+    
+    # Update session with new username
+    request.session["username"] = username
+    
+    try:
+        db.commit()
+        return RedirectResponse(
+            "/auth/profile?message=Username+updated+successfully",
+            status_code=HTTP_303_SEE_OTHER
+        )
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating username: {str(e)}")
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "An error occurred while updating your username"}
+        )
 
 @router.get("/change-password", response_class=HTMLResponse)
 async def change_password_page(request: Request, error: Optional[str] = None, message: Optional[str] = None):
@@ -741,6 +912,219 @@ async def reset_password_post(
     return RedirectResponse(
         "/auth/login?message=Password+has+been+reset+successfully.+Please+login+with+your+new+password.",
         status_code=HTTP_303_SEE_OTHER
+    )
+
+@router.post("/delete-account", response_class=HTMLResponse)
+async def delete_account(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Handle account deletion"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Get user from database
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Don't allow admins to delete their accounts through this flow
+    # to prevent accidentally removing the only admin account
+    if user.is_admin:
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "Admin accounts cannot be deleted through this page. Please contact the system administrator."}
+        )
+
+    try:
+        # Handle team memberships (anonymize rather than delete)
+        from ..models import TeamMembership, TeamJoinRequest, UserPoints, EventAttendee
+        
+        # Get all team memberships
+        memberships = db.query(TeamMembership).filter(TeamMembership.user_id == user_id).all()
+        
+        # Clean up any pending join requests
+        db.query(TeamJoinRequest).filter(TeamJoinRequest.user_id == user_id).delete()
+        
+        # Instead of deleting data completely, we'll anonymize it to keep integrity
+        # Update the username and email to indicate this is a deleted account
+        anonymous_username = f"deleted_user_{user_id}"
+        anonymous_email = f"deleted_{user_id}@deleted.user"
+        
+        user.username = anonymous_username
+        user.email = anonymous_email
+        user.is_active = False
+        user.hashed_password = None
+        user.picture = None
+        user.first_name = None
+        user.last_name = None
+        user.oauth_id = None
+        user.oauth_provider = None
+        user.additional_oauth_providers = None
+        
+        # Mark account as deactivated
+        db.commit()
+        
+        # Clear session
+        request.session.clear()
+        
+        # Show success page
+        return templates.TemplateResponse(
+            "auth/account_deleted.html",
+            {"request": request}
+        )
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting account: {str(e)}")
+        return templates.TemplateResponse(
+            "auth/profile.html",
+            {"request": request, "user": user, "error": "An error occurred while deleting your account. Please try again later."}
+        )
+
+@router.get("/privacy-settings", response_class=HTMLResponse)
+async def privacy_settings_page(request: Request, db: Session = Depends(get_db)):
+    """Display privacy settings page"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Get user from database
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Get current privacy settings
+    privacy_settings = user.get_privacy_settings()
+    
+    return templates.TemplateResponse(
+        "auth/privacy_settings.html", 
+        {
+            "request": request, 
+            "user": user,
+            "privacy_settings": privacy_settings,
+            "privacy_options": [
+                {"value": "public", "label": "Everyone", "description": "Visible to all users"},
+                {"value": "friends", "label": "Team Members", "description": "Only visible to members of your teams"},
+                {"value": "private", "label": "Private", "description": "Only visible to you and admins"}
+            ]
+        }
+    )
+
+@router.post("/privacy-settings", response_class=HTMLResponse)
+async def update_privacy_settings(
+    request: Request,
+    email_visibility: str = Form(...),
+    full_name_visibility: str = Form(...),
+    teams_visibility: str = Form(...),
+    points_visibility: str = Form(...),
+    achievements_visibility: str = Form(...),
+    events_visibility: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Handle privacy settings update"""
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Get user from database
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
+    
+    # Validate inputs
+    valid_options = ["public", "friends", "private"]
+    privacy_settings = {
+        "email": email_visibility if email_visibility in valid_options else "private",
+        "full_name": full_name_visibility if full_name_visibility in valid_options else "friends",
+        "teams": teams_visibility if teams_visibility in valid_options else "public",
+        "points": points_visibility if points_visibility in valid_options else "public",
+        "achievements": achievements_visibility if achievements_visibility in valid_options else "public",
+        "events": events_visibility if events_visibility in valid_options else "friends"
+    }
+    
+    # Update user privacy settings
+    user.privacy_settings = privacy_settings
+    db.commit()
+    
+    # Redirect back to privacy settings with success message
+    return RedirectResponse(
+        "/auth/privacy-settings?message=Privacy+settings+updated+successfully",
+        status_code=HTTP_303_SEE_OTHER
+    )
+
+@router.get("/user/{user_id}", response_class=HTMLResponse)
+async def view_user_profile(
+    request: Request,
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """View another user's profile with privacy settings applied"""
+    # Check if the requested user exists
+    profile_user = db.query(User).filter(User.id == user_id).first()
+    if not profile_user:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": "User not found"}
+        )
+    
+    # Get current logged-in user (if any)
+    current_user_id = request.session.get("user_id")
+    current_user = None
+    if current_user_id:
+        current_user = db.query(User).filter(User.id == current_user_id).first()
+    
+    # Check if the user is viewing their own profile
+    if current_user_id and current_user_id == user_id:
+        return RedirectResponse("/auth/profile", status_code=HTTP_303_SEE_OTHER)
+    
+    # Import privacy utilities
+    from ..utils.auth import get_viewable_profile_data, check_privacy_permission
+    
+    # Get viewable profile data based on privacy settings
+    profile_data = get_viewable_profile_data(db, profile_user, current_user_id)
+    
+    # If the user can view teams, fetch team data
+    teams = []
+    if profile_data["can_view_teams"]:
+        from ..models import TeamMembership, Team
+        team_memberships = db.query(TeamMembership, Team).join(
+            Team, TeamMembership.team_id == Team.id
+        ).filter(
+            TeamMembership.user_id == user_id
+        ).all()
+        
+        teams = [
+            {
+                "id": team.id,
+                "name": team.name,
+                "is_captain": membership.is_captain
+            } for membership, team in team_memberships
+        ]
+    
+    # If the user can view points, fetch points data
+    total_points = 0
+    if profile_data["can_view_points"]:
+        from ..models import UserPoints
+        points_records = db.query(UserPoints).filter(UserPoints.user_id == user_id).all()
+        total_points = sum(record.points for record in points_records)
+    
+    return templates.TemplateResponse(
+        "auth/view_profile.html", 
+        {
+            "request": request, 
+            "profile": profile_data,
+            "profile_user_id": user_id,
+            "user": current_user,  # Pass the current user for menu display
+            "teams": teams,
+            "total_points": total_points,
+        }
     )
 
 def validate_password_strength(password: str) -> Optional[str]:

@@ -71,32 +71,80 @@ def seed_db():
                 username="admin",
                 email="admin@example.com",
                 hashed_password=get_password_hash("password"),
-                is_admin=True  # Set admin privileges
+                is_admin=True,  # Set admin privileges
+                privacy_settings={
+                    "email": "private",
+                    "full_name": "friends",
+                    "teams": "public",
+                    "points": "public", 
+                    "achievements": "public",
+                    "events": "friends"
+                }
             ),
             User(
                 username="john_quizmaster",
                 email="john@example.com",
-                hashed_password=get_password_hash("password123")
+                hashed_password=get_password_hash("password123"),
+                privacy_settings={
+                    "email": "friends",
+                    "full_name": "public",
+                    "teams": "public",
+                    "points": "public", 
+                    "achievements": "public",
+                    "events": "public"
+                }
             ),
             User(
                 username="sarah_johnson",
                 email="sarah@example.com",
-                hashed_password=get_password_hash("password123")
+                hashed_password=get_password_hash("password123"),
+                privacy_settings={
+                    "email": "private",
+                    "full_name": "public",
+                    "teams": "public",
+                    "points": "friends", 
+                    "achievements": "public",
+                    "events": "friends"
+                }
             ),
             User(
                 username="mike_peters",
                 email="mike@example.com",
-                hashed_password=get_password_hash("password123")
+                hashed_password=get_password_hash("password123"),
+                privacy_settings={
+                    "email": "private",
+                    "full_name": "friends",
+                    "teams": "public",
+                    "points": "public", 
+                    "achievements": "public",
+                    "events": "public"
+                }
             ),
             User(
                 username="emma_wilson",
                 email="emma@example.com",
-                hashed_password=get_password_hash("password123")
+                hashed_password=get_password_hash("password123"),
+                privacy_settings={
+                    "email": "private",
+                    "full_name": "private",
+                    "teams": "friends",
+                    "points": "private", 
+                    "achievements": "friends",
+                    "events": "private"
+                }
             ),
             User(
                 username="robert_brown",
                 email="robert@example.com",
-                hashed_password=get_password_hash("password123")
+                hashed_password=get_password_hash("password123"),
+                privacy_settings={
+                    "email": "private",
+                    "full_name": "friends",
+                    "teams": "public",
+                    "points": "public", 
+                    "achievements": "public",
+                    "events": "friends"
+                }
             ),
         ]
         db.add_all(users)

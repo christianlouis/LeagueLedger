@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="space-y-6">
+<div class="max-w-4xl mx-auto space-y-6">
   <!-- Team Header -->
   <div class="bg-white rounded-lg shadow-md overflow-hidden">
     <div class="bg-irish-green p-6">
@@ -88,10 +88,18 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center">
             <div class="w-10 h-10 rounded-full bg-gray-200 mr-3 overflow-hidden">
-              <img src="https://picsum.photos/40" alt="User" class="w-full h-full object-cover">
+              {% if member.user.picture %}
+              <img src="{{ member.user.picture }}" alt="User" class="w-full h-full object-cover">
+              {% else %}
+              <div class="w-full h-full bg-irish-green flex items-center justify-center text-white text-sm">
+                {{ member.user.username[0]|upper }}
+              </div>
+              {% endif %}
             </div>
             <div>
-              <p class="font-medium">{{ member.user.username }}</p>
+              <p class="font-medium">
+                <a href="/auth/user/{{ member.user.id }}" class="hover:text-irish-green">{{ member.user.username }}</a>
+              </p>
               <p class="text-xs text-gray-500">Joined {{ member.joined }}</p>
             </div>
           </div>
