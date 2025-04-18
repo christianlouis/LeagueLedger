@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+import asyncio
 
 from .models import User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event, SystemSettings
 from .db import SessionLocal, engine
@@ -26,17 +27,17 @@ def table_has_column(engine, table_name, column_name):
     columns = [col['name'] for col in inspector.get_columns(table_name)]
     return column_name in columns
 
-def init_db():
+async def init_db():
     """Initialize the database, applying migrations and seeding data."""
     # First, create all tables if they don't exist
     from .models import Base
     Base.metadata.create_all(bind=engine)
     # Then, run any needed migrations
-    run_migrations(engine)
+    await asyncio.to_thread(run_migrations, engine)
     # Then proceed with seeding if needed
-    seed_db()
+    await asyncio.to_thread(seed_db)
     # Initialize system settings if needed
-    init_system_settings()
+    await asyncio.to_thread(init_system_settings)
 
 def init_system_settings():
     """Initialize the system settings table if it doesn't exist."""
@@ -173,23 +174,24 @@ def seed_db():
         memberships = []
         membership_data = [
             # Quiz Wizards
-            (1, 1, True, 160),  # Admin user is team admin of Quiz Wizards
-            (2, 1, True, 155),
-            (3, 1, False, 130),
-            (4, 1, False, 90),
-            (5, 1, False, 45),
+            (1, 1, True, True, 160),  # Admin user is team admin AND captain of Quiz Wizards
+            (2, 1, True, True, 155),  # John is also admin AND captain
+            (3, 1, False, False, 130),
+            (4, 1, False, False, 90),
+            (5, 1, False, False, 45),
             # Trivia Titans
-            (2, 2, True, 150),
-            (1, 2, False, 145),
+            (2, 2, True, True, 150),  # John is admin AND captain of Trivia Titans
+            (1, 2, False, False, 145),
             # Beer Brainiacs
-            (3, 3, True, 120),
+            (3, 3, True, True, 120),  # Sarah is admin AND captain of Beer Brainiacs
         ]
         
-        for user_id, team_id, is_admin, days_ago in membership_data:
+        for user_id, team_id, is_admin, is_captain, days_ago in membership_data:
             membership_attrs = {
                 "user_id": user_id,
                 "team_id": team_id,
-                "is_admin": is_admin
+                "is_admin": is_admin,
+                "is_captain": is_captain  # Added is_captain field
             }
             if has_joined_at:
                 membership_attrs["joined_at"] = datetime.now() - timedelta(days=days_ago)
@@ -366,4 +368,4 @@ def seed_db():
         db.close()
 
 if __name__ == "__main__":
-    init_db()
+    asyncio.run(init_db())

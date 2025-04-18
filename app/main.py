@@ -11,6 +11,11 @@ from starlette.middleware.authentication import AuthenticationMiddleware
 from dotenv import load_dotenv
 import logging
 import contextlib
+import time
+import asyncio
+import sqlalchemy
+from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy import text
 
 from .db import engine, get_db
 from . import models
@@ -52,10 +57,54 @@ app.add_middleware(
 # Then add SessionMiddleware (last added = first executed)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_db_client():
-    logger.info("Starting database initialization")
+# Function to check database connection
+async def check_db_connection(max_retries=10, initial_retry_delay=1):
+    """
+    Check database connection with retries and exponential backoff
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        initial_retry_delay: Initial delay before first retry in seconds
+        
+    Returns:
+        bool: True if connection succeeded, False otherwise
+    """
+    retry_delay = initial_retry_delay
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            # Try a simple query to test the connection
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                logger.info(f"Database connection successful on attempt {attempt}")
+                return True
+        except (OperationalError, ProgrammingError) as e:
+            if "Connection refused" in str(e) or "Can't connect" in str(e):
+                logger.warning(f"Database connection attempt {attempt}/{max_retries} failed: {str(e)}")
+                
+                if attempt < max_retries:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    await asyncio.sleep(retry_delay)
+                    # Exponential backoff with a maximum delay of 10 seconds
+                    retry_delay = min(retry_delay * 2, 10)
+                else:
+                    logger.error(f"Failed to connect to database after {max_retries} attempts")
+                    return False
+            else:
+                # For other database errors, log and continue
+                logger.error(f"Database error: {str(e)}")
+                return False
+        except Exception as e:
+            logger.error(f"Unexpected error connecting to database: {str(e)}")
+            return False
+            
+    return False
+
+# Initialize database with schema and tables
+async def initialize_database():
+    """
+    Initialize the database schema and seed data
+    """
     try:
         # Import models to ensure they're registered with Base before initialization
         from . import models
@@ -63,10 +112,29 @@ async def startup_db_client():
         # Initialize database (applies migrations and seeds data)
         init_db()
         logger.info("Database initialized and migrated successfully")
-            
+        return True
     except Exception as e:
         logger.error(f"Database initialization error: {str(e)}")
-        # We continue even if there was an error, as the application might still work with partial functionality
+        return False
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_db_client():
+    logger.info("Starting database initialization")
+    
+    # First, ensure database server is available with polling
+    max_retries = 15  # Try up to 15 times (with exponential backoff, this could be ~2 minutes)
+    connected = await check_db_connection(max_retries=max_retries)
+    
+    if connected:
+        # Once connected, initialize the database
+        success = await initialize_database()
+        if success:
+            logger.info("Database setup completed successfully")
+        else:
+            logger.warning("Database initialization completed with errors")
+    else:
+        logger.error("Failed to connect to database, application may not function correctly")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

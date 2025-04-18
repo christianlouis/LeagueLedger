@@ -55,10 +55,10 @@ This document outlines upcoming tasks and improvements for the LeagueLedger appl
 ## User Management & Profile Features
 
 - [ ] **Profile Management**
-  - [ ] Update profile picture functionality
-  - [ ] Change username capability
-  - [ ] Account deletion process
-  - [ ] Profile privacy settings
+  - [x] Update profile picture functionality
+  - [x] Change username capability
+  - [x] Account deletion process
+  - [x] Profile privacy settings
   - [ ] Social media integration
 
 ## Environment Variables & Configuration
@@ -159,3 +159,9 @@ This document outlines upcoming tasks and improvements for the LeagueLedger appl
 - [ ] Add support for clustering/high availability
 - [ ] Implement CDN for static assets
 - [ ] Create backup and disaster recovery procedures
+
+
+## Layout
+- [ ] Change layout to use Tailwind CSS
+- [ ] Change layout to use https://ui.shadcn.com/
+- [ ] Make mail templates less spam-y

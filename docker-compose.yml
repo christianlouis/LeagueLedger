@@ -110,7 +110,7 @@ services:
     container_name: pubquiz_mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025"  # Web UI
+      - "8025:8025"  # Web UI - Access emails at http://localhost:8025/
       - "1025:1025"  # SMTP Server
     environment:
       MH_STORAGE: "memory"  # Store emails in memory (they will be lost on container restart)

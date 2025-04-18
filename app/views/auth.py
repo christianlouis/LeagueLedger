@@ -220,6 +220,7 @@ async def register_post(
 @router.get("/verify-email", response_class=HTMLResponse)
 async def verify_email(
     request: Request,
+    background_tasks: BackgroundTasks,
     token: str,
     db: Session = Depends(get_db)
 ):
@@ -243,11 +244,10 @@ async def verify_email(
     # Send welcome email in the background
     try:
         from ..utils.mail import send_welcome_email
-        background_tasks = BackgroundTasks()
-        background_tasks.add_task(
-            send_welcome_email,
-            email=user.email,
-            username=user.username
+        await send_welcome_email(
+            email_to=user.email,
+            username=user.username,
+            background_tasks=background_tasks
         )
     except Exception as e:
         print(f"Failed to queue welcome email: {str(e)}")
@@ -818,7 +818,7 @@ async def forgot_password_post(
         try:
             # Send reset email
             await send_password_reset_email(
-                email=user.email,
+                email_to=user.email,
                 username=user.username,
                 reset_token=reset_token,
                 background_tasks=background_tasks,

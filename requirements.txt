@@ -34,7 +34,7 @@ psutil>=5.9.0  # System monitoring and statistics
 python-dateutil>=2.8.2  # Date manipulation utilities
 
 # Email support
-fastapi-mail>=1.4.2
+beautifulsoup4>=4.12.2  # HTML parsing for emails
 
 # Image processing library for QR code generation
 Pillow>=9.0.0
