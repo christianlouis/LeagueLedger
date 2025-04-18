@@ -110,7 +110,7 @@ async def initialize_database():
         from . import models
         
         # Initialize database (applies migrations and seeds data)
-        init_db()
+        await init_db()  # Added await keyword here
         logger.info("Database initialized and migrated successfully")
         return True
     except Exception as e:
