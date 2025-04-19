@@ -539,6 +539,85 @@ async def delete_record(
     if not record:
         raise HTTPException(status_code=404, detail=f"Record not found")
     
+    # Special handling for different models due to foreign key constraints
+    if model_name == 'team':
+        # First clear any QR code references to this team
+        db.query(QRCode).filter(QRCode.redeemed_at_team == record_id).update(
+            {"redeemed_at_team": None}, synchronize_session=False
+        )
+        
+        # Clear any team achievements
+        db.query(TeamAchievement).filter(TeamAchievement.team_id == record_id).delete(
+            synchronize_session=False
+        )
+
+        # Handle team memberships (should be auto-deleted via cascade, but just to be safe)
+        db.query(TeamMembership).filter(TeamMembership.team_id == record_id).delete(
+            synchronize_session=False
+        )
+        
+        # Handle pending join requests
+        db.query(TeamJoinRequest).filter(TeamJoinRequest.team_id == record_id).delete(
+            synchronize_session=False
+        )
+    
+    elif model_name == 'user':
+        # Clear QR code references to this user
+        db.query(QRCode).filter(QRCode.redeemed_by == record_id).update(
+            {"redeemed_by": None}, synchronize_session=False
+        )
+        
+        # Handle QR sets created by this user - set created_by to NULL
+        db.query(QRSet).filter(QRSet.created_by == record_id).update(
+            {"created_by": None}, synchronize_session=False
+        )
+        
+        # Handle team ownerships - could set to None or reassign
+        db.query(Team).filter(Team.owner_id == record_id).update(
+            {"owner_id": None}, synchronize_session=False
+        )
+        
+        # Remove team memberships
+        db.query(TeamMembership).filter(TeamMembership.user_id == record_id).delete(
+            synchronize_session=False
+        )
+        
+        # Remove team join requests
+        db.query(TeamJoinRequest).filter(TeamJoinRequest.user_id == record_id).delete(
+            synchronize_session=False
+        )
+        
+        # Remove OAuth accounts
+        db.query(OAuthAccount).filter(OAuthAccount.user_id == record_id).delete(
+            synchronize_session=False
+        )
+        
+        # Remove event attendance records
+        db.query(EventAttendee).filter(EventAttendee.user_id == record_id).delete(
+            synchronize_session=False
+        )
+        
+        # Remove user points
+        db.query(UserPoints).filter(UserPoints.user_id == record_id).delete(
+            synchronize_session=False
+        )
+    
+    elif model_name == 'event':
+        # Clear QR code references to this event
+        db.query(QRCode).filter(QRCode.event_id == record_id).update(
+            {"event_id": None}, synchronize_session=False
+        )
+        
+        # Clear team achievements associated with this event
+        db.query(TeamAchievement).filter(TeamAchievement.event_id == record_id).update(
+            {"event_id": None}, synchronize_session=False
+        )
+        
+        # Remove event attendees
+        db.query(EventAttendee).filter(EventAttendee.event_id == record_id).delete(
+            synchronize_session=False
+        )
+    
     # Delete record
     db.delete(record)
     db.commit()

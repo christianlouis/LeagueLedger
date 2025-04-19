@@ -9,7 +9,12 @@
 
 {% block content %}
 <div class="container mx-auto px-4">
-    <h1 class="text-3xl font-garamond text-irish-green font-bold mb-6">Admin Dashboard</h1>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-garamond text-irish-green font-bold">Admin Dashboard</h1>
+        <a href="/admin/models" class="bg-golden-ale hover:bg-opacity-90 text-black-stout px-4 py-2 rounded-md transition flex items-center">
+            <i class="fas fa-database mr-2"></i> Manage All Models
+        </a>
+    </div>
     
     <!-- Dashboard Overview -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
