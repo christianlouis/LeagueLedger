@@ -73,13 +73,20 @@ def get_team_total_points(db: Session, team_id: int):
 def calculate_team_rank(db: Session, team_id: int):
     """Calculate team rank based on points"""
     try:
-        # First, get the aggregated points for all teams
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            return 1
+
+        # First, get the aggregated points for teams in the same league
         team_points = db.query(
-            QRCode.redeemed_at_team, 
+            Team.id.label("team_id"),
             func.sum(QRCode.points).label('total')
+        ).outerjoin(
+            QRCode,
+            QRCode.redeemed_at_team == Team.id
         ).filter(
-            QRCode.redeemed_at_team != None
-        ).group_by(QRCode.redeemed_at_team).all()
+            Team.league_id == team.league_id
+        ).group_by(Team.id).all()
         
         # Sort them by points (descending)
         sorted_teams = sorted(team_points, key=lambda x: x.total or 0, reverse=True)
@@ -87,7 +94,7 @@ def calculate_team_rank(db: Session, team_id: int):
         # Find our team's position
         team_rank = 1
         for idx, team_data in enumerate(sorted_teams):
-            if team_data.redeemed_at_team == team_id:
+            if team_data.team_id == team_id:
                 team_rank = idx + 1
                 break
         

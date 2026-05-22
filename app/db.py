@@ -77,6 +77,11 @@ def migrate_schema():
         # Check Team table
         if 'teams' in tables:
             columns = [col['name'] for col in inspector.get_columns('teams')]
+            if 'league_id' not in columns:
+                print("Adding league_id column to teams table")
+                connection.execute(text(
+                    "ALTER TABLE teams ADD COLUMN league_id INT NULL"
+                ))
             if 'is_public' not in columns:
                 print("Adding is_public column to teams table")
                 connection.execute(text(
@@ -109,6 +114,11 @@ def migrate_schema():
         # Check QRCode table (formerly QRTicket)
         if 'qr_codes' in tables:
             columns = [col['name'] for col in inspector.get_columns('qr_codes')]
+            if 'league_id' not in columns:
+                print("Adding league_id column to qr_codes table")
+                connection.execute(text(
+                    "ALTER TABLE qr_codes ADD COLUMN league_id INT NULL"
+                ))
             if 'created_at' not in columns:
                 print("Adding created_at column to qr_codes table")
                 connection.execute(text(
@@ -121,6 +131,22 @@ def migrate_schema():
                 ))
         else:
             print("QRCodes table doesn't exist yet, skipping QRCode table migrations")
+
+        if 'events' in tables:
+            columns = [col['name'] for col in inspector.get_columns('events')]
+            if 'league_id' not in columns:
+                print("Adding league_id column to events table")
+                connection.execute(text(
+                    "ALTER TABLE events ADD COLUMN league_id INT NULL"
+                ))
+
+        if 'qr_sets' in tables:
+            columns = [col['name'] for col in inspector.get_columns('qr_sets')]
+            if 'league_id' not in columns:
+                print("Adding league_id column to qr_sets table")
+                connection.execute(text(
+                    "ALTER TABLE qr_sets ADD COLUMN league_id INT NULL"
+                ))
         
         # Handle legacy QRTicket table migration if it exists
         if 'qr_tickets' in tables and 'qr_codes' in tables:
@@ -177,6 +203,26 @@ def migrate_schema():
                     )
                 """))
                 connection.commit()
+
+            if 'leagues' not in tables:
+                print("Creating leagues table")
+                connection.execute(text("""
+                    CREATE TABLE leagues (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(100) UNIQUE NOT NULL,
+                        slug VARCHAR(120) UNIQUE NOT NULL,
+                        description TEXT,
+                        publisher_name VARCHAR(100),
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    )
+                """))
+                connection.execute(text("""
+                    INSERT INTO leagues (name, slug, description, publisher_name, is_active)
+                    VALUES ('Default League', 'default', 'Default league for existing LeagueLedger data.', 'LeagueLedger', TRUE)
+                """))
+                connection.commit()
             
             # Create team_members table if it doesn't exist and teams table exists
             if 'team_members' not in tables and 'teams' in tables:
@@ -216,6 +262,7 @@ def migrate_schema():
                 connection.execute(text("""
                     CREATE TABLE events (
                         id INT AUTO_INCREMENT PRIMARY KEY,
+                        league_id INT NULL,
                         name VARCHAR(100) NOT NULL,
                         description TEXT,
                         location VARCHAR(200),
@@ -262,6 +309,7 @@ def migrate_schema():
             connection.execute(text("""
                 CREATE TABLE qr_sets (
                     id INT AUTO_INCREMENT PRIMARY KEY,
+                    league_id INT NULL,
                     name VARCHAR(100) NOT NULL,
                     description TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

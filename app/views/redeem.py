@@ -10,6 +10,7 @@ from datetime import datetime
 from ..db import SessionLocal
 from ..models import QRCode, User, Team, TeamMembership, TeamAchievement
 from ..templates_config import templates
+from ..league_context import get_default_league, qr_code_league_id
 
 router = APIRouter()
 
@@ -73,14 +74,21 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
             }
         )
 
-    # Get only teams the user is a member of, if logged in
+    effective_league_id = qr_code_league_id(qr_code)
+    if not effective_league_id:
+        effective_league_id = get_default_league(db).id
+
+    # Get only teams the user is a member of in the QR code's league, if logged in
     user_teams = []
     if user:
         # Query teams where the user is a member using TeamMembership relation
         user_teams = (
             db.query(Team)
             .join(TeamMembership, Team.id == TeamMembership.team_id)
-            .filter(TeamMembership.user_id == user.id)
+            .filter(
+                TeamMembership.user_id == user.id,
+                Team.league_id == effective_league_id
+            )
             .all()
         )
     
@@ -101,7 +109,7 @@ def redeem_code(code: str, request: Request, db: Session = Depends(get_db)):
             {
                 "request": request,
                 "error_title": "No Teams Available",
-                "error_message": "You are not a member of any teams. Please join or create a team before redeeming QR codes.",
+                "error_message": "You are not a member of any teams in this league. Please join or create a team before redeeming this QR code.",
                 "user": user
             }
         )
@@ -220,6 +228,21 @@ async def apply_code(
                 "user": user  # Add user to the context
             }
         )
+
+    effective_league_id = qr_code_league_id(qr_code)
+    if not effective_league_id:
+        effective_league_id = get_default_league(db).id
+
+    if team.league_id != effective_league_id:
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "error_title": "Wrong League",
+                "error_message": "This QR code can only be redeemed by a team in its league.",
+                "user": user
+            }
+        )
     
     # Verify the user is a member of the selected team
     is_team_member = db.query(TeamMembership).filter_by(
@@ -239,6 +262,8 @@ async def apply_code(
         )
 
     # Mark the QR code as redeemed
+    qr_code.league_id = effective_league_id
+    qr_code.redeemed_by = user.id
     qr_code.redeemed_at_team = team.id
     qr_code.redeemed_at = datetime.now()
     qr_code.used = True

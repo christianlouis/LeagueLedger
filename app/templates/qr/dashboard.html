@@ -6,6 +6,20 @@
     <p class="text-gray-600">Create and manage QR code sets for your pub quiz events</p>
   </div>
 
+  <form method="get" action="/qr/" class="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
+    <div>
+      <label for="league_filter" class="block text-sm font-medium text-gray-700">League</label>
+      <select id="league_filter" name="league_id" onchange="this.form.submit()"
+        class="mt-1 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-irish-green">
+        {% for league in leagues %}
+          <option value="{{ league.id }}" {% if selected_league and selected_league.id == league.id %}selected{% endif %}>
+            {{ league.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+
   <div class="grid md:grid-cols-3 gap-8">
     <!-- QR Set Creation -->
     <div class="bg-white rounded-lg shadow-md p-6">
@@ -15,6 +29,7 @@
       </p>
 
       <form id="qrSetForm" action="/qr/sets" method="post" class="space-y-4">
+        <input type="hidden" name="league_id" value="{{ selected_league.id }}">
         <div>
           <label for="name" class="block text-sm font-medium text-gray-700">Set Name</label>
           <input type="text" name="name" id="name" required
@@ -140,7 +155,8 @@
             <div class="px-6 py-4">
               <div class="text-sm text-gray-500">
                 <p>Created: {{ qr_set.created_at.strftime('%Y-%m-%d') }}</p>
-                <p>QR Codes: {% if qr_set.qr_codes %}{{ qr_set.qr_codes | length }}{% else %}0{% endif %}</p>
+              <p>League: {{ qr_set.league.name if qr_set.league else "Default League" }}</p>
+              <p>QR Codes: {% if qr_set.qr_codes %}{{ qr_set.qr_codes | length }}{% else %}0{% endif %}</p>
               </div>
               <div class="mt-4 flex justify-between">
                 <a href="/qr/sets/{{ qr_set.id }}" class="text-irish-green hover:underline">
@@ -199,9 +215,10 @@
     quickQrForm.addEventListener('submit', function(e) {
       e.preventDefault();
       const points = document.getElementById('qr-points').value;
+      const leagueId = '{{ selected_league.id }}';
       
       // Generate QR code
-      qrImage.innerHTML = '<img src="/qr/generate/' + points + '" alt="QR Code" class="mx-auto" />';
+      qrImage.innerHTML = '<img src="/qr/generate/' + points + '?league_id=' + leagueId + '" alt="QR Code" class="mx-auto" />';
       qrResult.classList.remove('hidden');
     });
   });

@@ -7,7 +7,6 @@ httpx>=0.25.0  # HTTP client for making requests
 # Database
 sqlalchemy>=2.0.20
 pymysql>=1.1.0
-mysqlclient>=2.2.0
 
 # Authentication and Security
 authlib>=1.2.1

@@ -114,10 +114,31 @@ class OAuthAccount(Base):
     user = relationship("User")
 
 
+class League(Base):
+    __tablename__ = "leagues"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+    slug = Column(String(120), unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    publisher_name = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    teams = relationship("Team", back_populates="league")
+    qr_sets = relationship("QRSet", back_populates="league")
+    qr_codes = relationship("QRCode", back_populates="league")
+    events = relationship("Event", back_populates="league")
+
+    def __repr__(self):
+        return f"<League {self.name}>"
+
+
 class Team(Base):
     __tablename__ = "teams"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    league_id = Column(Integer, ForeignKey("leagues.id"), nullable=True, index=True)
+    name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     logo_url = Column(String(255), nullable=True)  # Add logo URL field
     is_public = Column(Boolean, default=False)  # For team privacy setting
@@ -128,8 +149,11 @@ class Team(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
+    league = relationship("League", back_populates="teams")
     members = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
     owner = relationship("User", back_populates="owned_teams")
+
+    __table_args__ = (UniqueConstraint('league_id', 'name', name='_league_team_name_uc'),)
 
 
 class TeamJoinRequest(Base):
@@ -169,12 +193,14 @@ class QRSet(Base):
     """A set of related QR codes, such as codes for different placements in a quiz"""
     __tablename__ = "qr_sets"
     id = Column(Integer, primary_key=True, index=True)
+    league_id = Column(Integer, ForeignKey("leagues.id"), nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
+    league = relationship("League", back_populates="qr_sets")
     qr_codes = relationship("QRCode", back_populates="qr_set")
     creator = relationship("User")
 
@@ -183,12 +209,14 @@ class QRCode(Base):
     """Unified QR code model that includes all the functionality of the old QRTicket and QRCode models"""
     __tablename__ = "qr_codes"
     id = Column(Integer, primary_key=True, index=True)
+    league_id = Column(Integer, ForeignKey("leagues.id"), nullable=True, index=True)
     code = Column(String(128), unique=True, index=True, nullable=False)  # Unique token
     points = Column(Float, default=0, nullable=False)
     title = Column(String(100), nullable=True)  # e.g., "1st Place", "2nd Place"
     description = Column(String(255), nullable=True)
     
     # Set relationship
+    league = relationship("League", back_populates="qr_codes")
     qr_set_id = Column(Integer, ForeignKey("qr_sets.id"), nullable=True)
     qr_set = relationship("QRSet", back_populates="qr_codes")
     
@@ -236,6 +264,7 @@ class TeamAchievement(Base):
 class Event(Base):
     __tablename__ = "events"
     id = Column(Integer, primary_key=True, index=True)
+    league_id = Column(Integer, ForeignKey("leagues.id"), nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     location = Column(String(200), nullable=True)
@@ -244,6 +273,7 @@ class Event(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     # Relationships
+    league = relationship("League", back_populates="events")
     attendees = relationship("EventAttendee", back_populates="event")
 
 

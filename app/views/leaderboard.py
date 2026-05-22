@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from ..db import SessionLocal
 from ..models import Team, TeamMembership, QRCode, User
+from ..league_context import get_active_leagues, resolve_selected_league
 from ..templates_config import templates
 
 router = APIRouter()
@@ -25,6 +26,7 @@ def get_db():
 async def show_leaderboard(
     request: Request, 
     timeframe: str = Query("all", regex="^(week|month|all)$"),
+    league_id: int = Query(None),
     db: Session = Depends(get_db)
 ):
     """Show the leaderboard with team rankings."""
@@ -34,6 +36,9 @@ async def show_leaderboard(
     user_id = request.session.get("user_id")
     if user_id:
         user = db.query(User).get(user_id)
+
+    selected_league = resolve_selected_league(db, league_id)
+    leagues = get_active_leagues(db)
     
     # Define cutoff date based on timeframe
     cutoff_date = None
@@ -56,7 +61,7 @@ async def show_leaderboard(
         QRCode,
         QRCode.redeemed_at_team == Team.id,
         isouter=True
-    )
+    ).filter(Team.league_id == selected_league.id)
     
     # Apply time filter if needed
     if cutoff_date:
@@ -64,7 +69,7 @@ async def show_leaderboard(
         query = query.filter(QRCode.redeemed_at >= cutoff_date)
     
     # Group and order
-    teams_ranking = query.group_by(Team.id).order_by(desc('total_points')).all()
+    teams_ranking = query.group_by(Team.id, Team.name).order_by(desc('total_points')).all()
     
     # Add ranks
     ranked_teams = []
@@ -88,6 +93,8 @@ async def show_leaderboard(
             "top_teams": top_teams,
             "timeframe": timeframe,
             "time_label": time_label,
+            "leagues": leagues,
+            "selected_league": selected_league,
             "user": user  # Add user to the context
         }
     )

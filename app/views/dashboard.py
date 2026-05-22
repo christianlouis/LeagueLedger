@@ -96,21 +96,27 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)):
         user_teams_enhanced = []
         
         if user_teams:
-            # Get all team points to calculate ranks
+            # Get all team points to calculate ranks within each league
             team_points_query = db.query(
                 models.Team.id,
+                models.Team.league_id,
                 func.sum(models.QRCode.points).label('total_points')
             ).outerjoin(
                 models.QRCode,
                 models.QRCode.redeemed_at_team == models.Team.id
-            ).group_by(models.Team.id)
+            ).group_by(models.Team.id, models.Team.league_id)
             
-            # Get results and sort by points in descending order
-            team_points = {row.id: row.total_points or 0 for row in team_points_query.all()}
-            ranked_teams = sorted(team_points.items(), key=lambda x: x[1], reverse=True)
-            
-            # Create a dictionary mapping team ID to rank
-            team_ranks = {team_id: i+1 for i, (team_id, _) in enumerate(ranked_teams)}
+            team_points = {}
+            points_by_league = {}
+            for row in team_points_query.all():
+                points = row.total_points or 0
+                team_points[row.id] = points
+                points_by_league.setdefault(row.league_id, []).append((row.id, points))
+
+            team_ranks = {}
+            for teams_in_league in points_by_league.values():
+                ranked_teams = sorted(teams_in_league, key=lambda x: x[1], reverse=True)
+                team_ranks.update({team_id: i + 1 for i, (team_id, _) in enumerate(ranked_teams)})
             
             # Enhance user teams with rank and points data
             for team in user_teams:
@@ -120,6 +126,7 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)):
                 user_teams_enhanced.append({
                     'id': team.id,
                     'name': team.name,
+                    'league_name': team.league.name if team.league else "Default League",
                     'points': points,
                     'rank': rank,
                     'description': getattr(team, 'description', None)
