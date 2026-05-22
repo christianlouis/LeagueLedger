@@ -7,6 +7,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 from fastapi.templating import Jinja2Templates
 
 from ...models import Team, TeamMembership, User, TeamJoinRequest
+from ...league_context import resolve_selected_league
 from ...utils.auth import get_current_user
 from ...utils.mail import send_team_join_request_notification, send_join_request_response
 from ...templates_config import templates
@@ -19,6 +20,7 @@ async def create_team_post(
     description: str = Form(""),
     logo_url: str = Form(""),
     is_open: bool = Form(False),
+    league_id: int = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -26,14 +28,23 @@ async def create_team_post(
     if not current_user:
         return RedirectResponse("/auth/login", status_code=HTTP_303_SEE_OTHER)
     
-    # Check if team name already exists
-    existing_team = db.query(Team).filter(Team.name == name).first()
+    selected_league = resolve_selected_league(db, league_id)
+
+    # Check if team name already exists in this league
+    existing_team = db.query(Team).filter(
+        Team.name == name,
+        Team.league_id == selected_league.id
+    ).first()
     if existing_team:
-        return RedirectResponse("/teams/?error=Team+name+already+exists", status_code=HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            f"/teams/?league_id={selected_league.id}&error=Team+name+already+exists",
+            status_code=HTTP_303_SEE_OTHER
+        )
     
     # Create team with only the fields that exist in the model
     team_data = {
         "name": name,
+        "league_id": selected_league.id,
         "description": description,
         "is_open": is_open,
         "owner_id": current_user.id
@@ -60,7 +71,7 @@ async def create_team_post(
     db.add(team_membership)
     db.commit()
 
-    return RedirectResponse("/teams/", status_code=HTTP_303_SEE_OTHER)
+    return RedirectResponse(f"/teams/?league_id={selected_league.id}", status_code=HTTP_303_SEE_OTHER)
 
 async def edit_team_post(
     request: Request,

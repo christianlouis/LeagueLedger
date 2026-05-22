@@ -17,7 +17,7 @@ from dateutil.relativedelta import relativedelta
 
 from ..db import SessionLocal, Base
 from ..models import (
-    User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event, 
+    User, League, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event,
     OAuthAccount, TeamJoinRequest, EventAttendee, UserPoints
 )
 from ..templates_config import templates
@@ -28,6 +28,7 @@ router = APIRouter()
 # Dictionary of model classes with their display names
 MODELS = {
     'user': (User, "Users"),
+    'league': (League, "Leagues"),
     'team': (Team, "Teams"),
     'team_membership': (TeamMembership, "Team Memberships"),
     'qr_code': (QRCode, "QR Codes"),

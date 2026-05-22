@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from ..db import SessionLocal
 from ..models import QRCode, QRSet, Event, User
+from ..league_context import get_active_leagues, parse_league_id, resolve_selected_league
 from ..templates_config import templates
 
 router = APIRouter()
@@ -61,16 +62,21 @@ async def qr_dashboard(request: Request, db: Session = Depends(get_db)):
     if user_id:
         user = db.query(User).get(user_id)
     
-    # Get all QR sets
-    qr_sets = db.query(QRSet).all()
+    league_id = request.query_params.get("league_id")
+    selected_league = resolve_selected_league(db, parse_league_id(league_id))
+    leagues = get_active_leagues(db)
+
+    # Get QR sets and events for the selected league
+    qr_sets = db.query(QRSet).filter(QRSet.league_id == selected_league.id).all()
     
-    # Get all events for linking
-    events = db.query(Event).all()
+    events = db.query(Event).filter(Event.league_id == selected_league.id).all()
     
     return templates.TemplateResponse("qr/dashboard.html", {
         "request": request,
         "qr_sets": qr_sets,
         "events": events,
+        "leagues": leagues,
+        "selected_league": selected_league,
         "user": user  # Add user to the context
     })
 
@@ -85,12 +91,14 @@ async def create_qr_set(
     form_data = await request.form()
     name = form_data.get("name")
     description = form_data.get("description", "")
+    league_id = form_data.get("league_id")
+    selected_league = resolve_selected_league(db, parse_league_id(league_id))
     
     if not name:
         raise HTTPException(status_code=400, detail="Set name is required")
     
     # Create QR set
-    qr_set = QRSet(name=name, description=description)
+    qr_set = QRSet(name=name, description=description, league_id=selected_league.id)
     db.add(qr_set)
     db.commit()
     db.refresh(qr_set)
@@ -148,6 +156,7 @@ async def add_qr_code_to_set(
     
     # Create QR code
     qr_code = QRCode(
+        league_id=qr_set.league_id,
         code=code_str,
         title=title,
         points=points,
@@ -165,14 +174,15 @@ async def add_qr_code_to_set(
 
 
 @router.get("/generate/{points}")
-def generate_qr(points: int, db: Session = Depends(get_db)):
+def generate_qr(points: int, league_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
     """
     Generate a single QR code for awarding `points` points. 
     Saves a record in the DB, returns the PNG as streaming response.
     """
     code_str = str(uuid.uuid4())
 
-    qr_code = QRCode(code=code_str, points=points)
+    selected_league = resolve_selected_league(db, league_id)
+    qr_code = QRCode(code=code_str, points=points, league_id=selected_league.id)
     db.add(qr_code)
     db.commit()
     db.refresh(qr_code)
@@ -239,7 +249,7 @@ async def admin_link_page(request: Request, admin_code: str, db: Session = Depen
         raise HTTPException(status_code=404, detail="QR Set not found")
     
     # Fetch available events
-    events = db.query(Event).all()
+    events = db.query(Event).filter(Event.league_id == qr_set.league_id).all()
     
     return templates.TemplateResponse("qr/admin_link.html", {
         "request": request,
@@ -273,6 +283,7 @@ async def process_admin_link(
         # Create new event
         event_date = datetime.now()  # Default to current date, can be improved
         new_event = Event(
+            league_id=qr_set.league_id,
             name=event_name,
             description=f"Created via QR admin link on {event_date.strftime('%Y-%m-%d')}",
             event_date=event_date

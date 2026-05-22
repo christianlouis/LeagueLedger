@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import asyncio
 
-from .models import User, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event, SystemSettings
+from .models import User, League, Team, TeamMembership, QRCode, QRSet, TeamAchievement, Event, SystemSettings
 from .db import SessionLocal, engine
 from .db_migrations import run_migrations
 
@@ -150,6 +150,16 @@ def seed_db():
         ]
         db.add_all(users)
         db.commit()
+
+        default_league = League(
+            name="Default League",
+            slug="default",
+            description="Default league for LeagueLedger demo data.",
+            publisher_name="LeagueLedger",
+            is_active=True
+        )
+        db.add(default_league)
+        db.commit()
         
         # Create teams
         has_is_public = table_has_column(db.bind, 'teams', 'is_public')
@@ -158,7 +168,7 @@ def seed_db():
         
         teams = []
         for i, name in enumerate(["Quiz Wizards", "Trivia Titans", "Beer Brainiacs", "Knowledge Knights"]):
-            team_attrs = {"name": name}
+            team_attrs = {"name": name, "league_id": default_league.id}
             if has_is_public:
                 team_attrs["is_public"] = i % 2 == 1  # Alternate public/private
             if has_description:
@@ -203,21 +213,27 @@ def seed_db():
         # Create events for QR code linking
         events = [
             Event(name="Music Trivia Night", description="A night of musical quizzes", 
+                  league_id=default_league.id,
                   event_date=datetime.now() - timedelta(days=60), 
                   location="Irish Rover Pub"),
             Event(name="History Night", description="Test your history knowledge", 
+                  league_id=default_league.id,
                   event_date=datetime.now() - timedelta(days=45), 
                   location="Irish Rover Pub"),
             Event(name="Movie Trivia Night", description="All about cinema", 
+                  league_id=default_league.id,
                   event_date=datetime.now() - timedelta(days=30), 
                   location="Irish Rover Pub"),
             Event(name="Sports Quiz", description="For sports enthusiasts", 
+                  league_id=default_league.id,
                   event_date=datetime.now() - timedelta(days=15), 
                   location="Irish Rover Pub"),
             Event(name="General Knowledge", description="A bit of everything", 
+                  league_id=default_league.id,
                   event_date=datetime.now() - timedelta(days=7), 
                   location="Irish Rover Pub"),
             Event(name="Irish Rover Pub Quiz April 2025", description="Monthly pub quiz", 
+                  league_id=default_league.id,
                   event_date=datetime.now(), 
                   location="Irish Rover Pub")
         ]
@@ -227,11 +243,13 @@ def seed_db():
         # Create QR sets
         qr_sets = [
             QRSet(
+                league_id=default_league.id,
                 name="Standard Pub Quiz",
                 description="Contains QR codes for 1st place (25 points), 2nd place (15 points), 3rd place (10 points), and 4th place (5 points)",
                 created_by=1  # Admin user
             ),
             QRSet(
+                league_id=default_league.id,
                 name="Trivia Night with Achievements",
                 description="Special trivia night with QR codes for winners and achievement codes for trivia categories",
                 created_by=2  # John the quizmaster
@@ -248,6 +266,7 @@ def seed_db():
         qr_set_1 = qr_sets[0]
         qr_codes.extend([
             QRCode(
+                league_id=default_league.id,
                 code=str(uuid.uuid4()),
                 points=25,
                 title="1st Place",
@@ -257,6 +276,7 @@ def seed_db():
                 used=False
             ),
             QRCode(
+                league_id=default_league.id,
                 code=str(uuid.uuid4()),
                 points=15,
                 title="2nd Place",
@@ -266,6 +286,7 @@ def seed_db():
                 used=False
             ),
             QRCode(
+                league_id=default_league.id,
                 code=str(uuid.uuid4()),
                 points=10,
                 title="3rd Place",
@@ -275,6 +296,7 @@ def seed_db():
                 used=False
             ),
             QRCode(
+                league_id=default_league.id,
                 code=str(uuid.uuid4()),
                 points=5,
                 title="4th Place",
@@ -289,6 +311,7 @@ def seed_db():
         qr_set_2 = qr_sets[1]
         qr_codes.extend([
             QRCode(
+                league_id=default_league.id,
                 code=str(uuid.uuid4()),
                 points=20,
                 title="Trivia Champion",
@@ -298,6 +321,7 @@ def seed_db():
                 used=False
             ),
             QRCode(
+                league_id=default_league.id,
                 code=str(uuid.uuid4()),
                 points=0,
                 title="Estimate Winner",
@@ -308,6 +332,7 @@ def seed_db():
                 used=False
             ),
             QRCode(
+                league_id=default_league.id,
                 code=str(uuid.uuid4()),
                 points=0,
                 title="Film Buff",
@@ -334,6 +359,7 @@ def seed_db():
             
             qr_codes.append(
                 QRCode(
+                    league_id=default_league.id,
                     code=f"TICKET{i:03d}",
                     points=points,
                     title=f"{points} Points Ticket",

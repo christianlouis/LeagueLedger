@@ -1,7 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="max-w-4xl mx-auto">
-  <h2 class="text-2xl font-bold mb-6">Teams</h2>
+  <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+    <div>
+      <h2 class="text-2xl font-bold">Teams</h2>
+      {% if selected_league %}
+        <p class="text-gray-600">{{ selected_league.name }}</p>
+      {% endif %}
+    </div>
+    <form method="get" action="/teams/">
+      <label for="league_id" class="block text-sm font-medium text-gray-700">League</label>
+      <select id="league_id" name="league_id" onchange="this.form.submit()"
+              class="mt-1 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-irish-green">
+        {% for league in leagues %}
+          <option value="{{ league.id }}" {% if selected_league and selected_league.id == league.id %}selected{% endif %}>
+            {{ league.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
 
   {% if error %}
   <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -48,6 +66,7 @@
       <h3 class="text-xl font-semibold mb-4" style="color: var(--irish-green);">Create New Team</h3>
       {% if user %}
         <form action="/teams/create" method="post" class="mt-4">
+          <input type="hidden" name="league_id" value="{{ selected_league.id }}">
           <div class="mb-4">
             <label for="name" class="block text-sm font-medium mb-1">Team Name</label>
             <input type="text" name="name" id="name" placeholder="Enter team name" required 

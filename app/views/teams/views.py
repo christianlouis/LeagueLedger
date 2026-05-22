@@ -8,13 +8,17 @@ import random
 from sqlalchemy import inspect
 
 from ...models import Team, TeamMembership, User, QRCode, TeamJoinRequest
+from ...league_context import get_active_leagues, parse_league_id, resolve_selected_league
 from ...templates_config import templates
 from ...utils.auth import get_current_user
 from . import utils
 
 def list_teams_view(request: Request, db: Session):
     """Render the teams list view"""
-    teams = db.query(Team).all()
+    league_id = request.query_params.get("league_id")
+    selected_league = resolve_selected_league(db, parse_league_id(league_id))
+    leagues = get_active_leagues(db)
+    teams = db.query(Team).filter(Team.league_id == selected_league.id).all()
     
     # Get the user's teams to highlight teams they're already in
     user_team_ids = []
@@ -25,7 +29,15 @@ def list_teams_view(request: Request, db: Session):
     if user_id:
         user = db.query(User).get(user_id)
         # Get teams that user is a member of
-        memberships = db.query(TeamMembership).filter(TeamMembership.user_id == user_id).all()
+        memberships = (
+            db.query(TeamMembership)
+            .join(Team)
+            .filter(
+                TeamMembership.user_id == user_id,
+                Team.league_id == selected_league.id
+            )
+            .all()
+        )
         user_team_ids = [membership.team_id for membership in memberships]
     
     # Get error message if present
@@ -36,6 +48,8 @@ def list_teams_view(request: Request, db: Session):
         {
             "request": request, 
             "teams": teams,
+            "leagues": leagues,
+            "selected_league": selected_league,
             "user_team_ids": user_team_ids,
             "user": user,
             "error": error,
