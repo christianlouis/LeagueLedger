@@ -98,6 +98,7 @@ services:
       args:
         BUILD_JOBS: 4
     image: ghcr.io/christianlouis/leagueledger-phpmyadmin:5.2.3-php8.3.36
+    pull_policy: build
     container_name: pubquiz_phpmyadmin
     restart: unless-stopped
     depends_on:
