@@ -92,7 +92,12 @@ services:
       - ./:/app:delegated
 
   phpmyadmin:
-    image: library/phpmyadmin:5.2.3@sha256:cb525665c0669c74a117a63cb918a90662c786d9d4d04212717575546f6d7e29
+    build:
+      context: .
+      dockerfile: docker/phpmyadmin/Dockerfile
+      args:
+        BUILD_JOBS: 4
+    image: ghcr.io/christianlouis/leagueledger-phpmyadmin:5.2.3-php8.3.36
     container_name: pubquiz_phpmyadmin
     restart: unless-stopped
     depends_on:
