@@ -92,7 +92,7 @@ services:
       - ./:/app:delegated
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
+    image: library/phpmyadmin:5.2.3@sha256:cb525665c0669c74a117a63cb918a90662c786d9d4d04212717575546f6d7e29
     container_name: pubquiz_phpmyadmin
     restart: unless-stopped
     depends_on:
