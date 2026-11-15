@@ -1,18 +1,24 @@
-name: Deploy on Main Repo
+name: Manual LeagueLedger Deploy
 
 on:
-  workflow_run:
-    workflows: ["docker-build"]
-    types:
-      - completed
+  workflow_dispatch:
 
 jobs:
   deploy:
-    if: >
-      github.repository == 'ChristianLouis/LeagueLedger' &&
-      github.event.workflow_run.conclusion == 'success'
+    if: github.repository == 'christianlouis/LeagueLedger'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Deploy Webhook
+      - name: Require deployment webhook configuration
+        env:
+          DEPLOY_WEBHOOK: ${{ secrets.LEAGUELEDGER_DEPLOY_WEBHOOK }}
         run: |
-          curl -X POST https://docker2.kuechenserver.org/api/stacks/webhooks/51be0503-45f0-4202-9511-621a7477e3bc
+          if [ -z "$DEPLOY_WEBHOOK" ]; then
+            echo "::error::Missing LEAGUELEDGER_DEPLOY_WEBHOOK repository secret; deployment was not attempted."
+            exit 1
+          fi
+
+      - name: Trigger configured deploy webhook
+        env:
+          DEPLOY_WEBHOOK: ${{ secrets.LEAGUELEDGER_DEPLOY_WEBHOOK }}
+        run: |
+          curl --fail --silent --show-error --max-time 30 -X POST "$DEPLOY_WEBHOOK"

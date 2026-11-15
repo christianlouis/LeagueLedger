@@ -56,3 +56,14 @@ This project is licensed under the terms of the license file included in this re
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## CI/CD and deployment safety
+
+The canonical Docker workflow is `.github/workflows/docker-build.yml`:
+
+- Pull requests build the image without logging in or publishing it.
+- Pushes to `main` publish the `latest` and commit-SHA tags.
+- Pushes to `develop` publish only branch/SHA tags (`develop-<sha>` and `sha-<sha>`).
+- Version tags such as `v1.2.3` publish semantic-version tags.
+
+Production deployment is deliberately not automatic. Run **Manual LeagueLedger Deploy** from the Actions tab only after configuring the `LEAGUELEDGER_DEPLOY_WEBHOOK` repository secret. A missing secret fails clearly before any request is attempted.

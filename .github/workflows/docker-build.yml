@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Publish Docker Image
 
 permissions:
   contents: read
@@ -11,7 +11,6 @@ on:
       - develop
     tags:
       - 'v*'
-      - '[0-9]+.*'
   pull_request:
     branches:
       - main
@@ -25,27 +24,25 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Git Tag (if applicable)
-        if: startsWith(github.ref, 'refs/tags/')
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Extract metadata for tags
         id: meta
@@ -54,6 +51,13 @@ jobs:
           images: |
             ${{ env.IMAGE_NAME }}
             ghcr.io/${{ github.repository_owner }}/leagueledger
+          tags: |
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=raw,value=sha-${{ github.sha }},enable=${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
+            type=raw,value=develop-${{ github.sha }},enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and Push Docker Image with Provenance and SBOM
         uses: docker/build-push-action@v6
@@ -61,15 +65,10 @@ jobs:
           context: .
           file: Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/')) }}
           sbom: true
           provenance: mode=max
           tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/leagueledger:latest
-            ghcr.io/${{ github.repository_owner }}/leagueledger:${{ github.sha }}
-            ${{ startsWith(github.ref, 'refs/tags/') && format('{0}:{1}', env.IMAGE_NAME, env.VERSION) || '' }}
-            ${{ startsWith(github.ref, 'refs/tags/') && format('ghcr.io/{0}/leagueledger:{1}', github.repository_owner, env.VERSION) || '' }}
+            ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
